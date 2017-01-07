@@ -39,7 +39,7 @@ func connectRedis() {
 			panic(err)
 		}
 
-		_, err2 := redis_conn.Write([]byte("AUTH demo"))
+		_, err2 := redis_conn.Write([]byte("AUTH demo\r\nSELECT 0\r\n"))
 		if err2 != nil {
 			panic(err2)
 		}

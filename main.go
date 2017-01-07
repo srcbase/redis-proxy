@@ -77,7 +77,7 @@ func startServer() {
 }
 
 /**
- * Handle tcp accept
+ * Handle tcp request
  */
 func handler(conn net.Conn) {
 	fmt.Println("Accepted Connection from ", conn.RemoteAddr())

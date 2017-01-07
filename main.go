@@ -20,7 +20,15 @@ const REDIS_CONNS_TOTAL = 200
 var start_index int
 var start_index_lock sync.Mutex
 
+var c *config.Config
+var err_c error
+
 func main() {
+	c, err_c = config.ReadDefault("./config/sample.config.cfg")
+	if err_c != nil {
+		panic(err_c)
+	}
+
 	connectRedis()
 
 	for _, redis_conn := range redis_conns {
@@ -34,13 +42,28 @@ func main() {
  * Set redis connection pool
  */
 func connectRedis() {
+	redis_host, err_redis_host := c.String("redis-server", "host")
+	if err_redis_host != nil {
+		panic(err_redis_host)
+	}
+
+	redis_port, err_redis_port := c.String("redis-server", "port")
+	if err_redis_port != nil {
+		panic(err_redis_port)
+	}
+
+	redis_password, err_redis_password := c.String("redis-server", "password")
+	if err_redis_password != nil {
+		panic(err_redis_password)
+	}
+
 	for i := 0; i < REDIS_CONNS_TOTAL; i++ {
-		redis_conn, err := net.Dial("tcp", "demo.aliyuncs.com:6379")
+		redis_conn, err := net.Dial("tcp", redis_host + ":" + redis_port)
 		if err != nil {
 			panic(err)
 		}
 
-		_, err2 := redis_conn.Write([]byte("AUTH demo\r\nSELECT 0\r\n"))
+		_, err2 := redis_conn.Write([]byte("AUTH " + redis_password + "\r\nSELECT 0\r\n"))
 		if err2 != nil {
 			panic(err2)
 		}
@@ -62,7 +85,13 @@ func connectRedis() {
  */
 func startServer() {
 	fmt.Println("Starting redis proxy...")
-	l, err := net.Listen("tcp", "0.0.0.0:63799")
+
+	tcp_server_port, err_tcp_server_port := c.String("tcp-server", "port")
+	if err_tcp_server_port != nil {
+		panic(err_tcp_server_port)
+	}
+
+	l, err := net.Listen("tcp", "0.0.0.0:" + tcp_server_port)
 	if err != nil {
 		panic(err)
 	}

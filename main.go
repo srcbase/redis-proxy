@@ -58,7 +58,7 @@ func connectRedis() {
 	}
 
 	for i := 0; i < REDIS_CONNS_TOTAL; i++ {
-		redis_conn, err := net.Dial("tcp", redis_host + ":" + redis_port)
+		redis_conn, err := net.Dial("tcp", redis_host+":"+redis_port)
 		if err != nil {
 			panic(err)
 		}
@@ -91,7 +91,7 @@ func startServer() {
 		panic(err_tcp_server_port)
 	}
 
-	l, err := net.Listen("tcp", "0.0.0.0:" + tcp_server_port)
+	l, err := net.Listen("tcp", "0.0.0.0:"+tcp_server_port)
 	if err != nil {
 		panic(err)
 	}

@@ -44,6 +44,9 @@ func connectRedis() {
 			panic(err2)
 		}
 
+		buf := make([]byte, 4096)
+		redis_conn.Read(buf)
+
 		redisConn := new(RedisConn)
 		redisConnLock := new(sync.Mutex)
 		redisConn.Conn = redis_conn
@@ -85,11 +88,13 @@ func handler(conn net.Conn) {
 	for {
 		n, err := conn.Read(buf[0:])
 
-		if err != nil || strings.Contains(string(buf[0:n]), "COMMAND") {
+		command := string(buf[0:n])
+
+		if err != nil || strings.Contains(command, "COMMAND") {
 			break
 		}
 
-		if n > 0 {
+		if n > 0 && !strings.Contains(command, "AUTH") {
 			go exec(buf[0:n], conn)
 		}
 	}

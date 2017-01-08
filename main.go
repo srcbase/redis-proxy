@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	. "github.com/luoxiaojun1992/redis-proxy/lib/helper"
 	"github.com/robfig/config"
 	"net"
 	"strings"
@@ -23,11 +24,19 @@ var start_index_lock sync.Mutex
 var c *config.Config
 var err_c error
 
+var ip_white_list_arr []string
+
 func main() {
 	c, err_c = config.ReadDefault("./config/sample.config.cfg")
 	if err_c != nil {
 		panic(err_c)
 	}
+
+	ip_white_list, err_ip_white_list := c.String("access-control", "ip-white-list")
+	if err_ip_white_list != nil {
+		panic(err_ip_white_list)
+	}
+	ip_white_list_arr = strings.Split(ip_white_list, ",")
 
 	connectRedis()
 
@@ -100,6 +109,12 @@ func startServer() {
 		conn, err2 := l.Accept()
 		if err2 != nil {
 			panic(err2)
+		}
+
+		host, _, err_host_port := net.SplitHostPort(conn.RemoteAddr().String())
+		if err_host_port != nil || InStringArray(host, ip_white_list_arr) {
+			conn.Close()
+			continue
 		}
 
 		go handler(conn)

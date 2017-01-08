@@ -111,10 +111,12 @@ func startServer() {
 			panic(err2)
 		}
 
-		host, _, err_host_port := net.SplitHostPort(conn.RemoteAddr().String())
-		if err_host_port != nil || InStringArray(host, ip_white_list_arr) {
-			conn.Close()
-			continue
+		if len(ip_white_list_arr) > 0 {
+			host, _, err_host_port := net.SplitHostPort(conn.RemoteAddr().String())
+			if err_host_port != nil || !InStringArray(host, ip_white_list_arr) {
+				conn.Close()
+				continue
+			}
 		}
 
 		go handler(conn)

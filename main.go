@@ -113,16 +113,27 @@ func startServer() {
 			panic(err2)
 		}
 
-		if len(ip_white_list_arr) > 0 {
-			host, _, err_host_port := net.SplitHostPort(conn.RemoteAddr().String())
-			if err_host_port != nil || !InStringArray(host, ip_white_list_arr) {
-				conn.Close()
-				continue
-			}
+		if !checkIp(conn) {
+			continue
 		}
 
 		go handler(conn)
 	}
+}
+
+/**
+ * Check ip limit
+ */
+func checkIp(conn net.Conn) bool {
+	if len(ip_white_list_arr) > 0 {
+		host, _, err_host_port := net.SplitHostPort(conn.RemoteAddr().String())
+		if err_host_port != nil || !InStringArray(host, ip_white_list_arr) {
+			conn.Close()
+			return false
+		}
+	}
+
+	return true
 }
 
 /**

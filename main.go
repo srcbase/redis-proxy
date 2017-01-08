@@ -26,6 +26,8 @@ var err_c error
 
 var ip_white_list_arr []string
 
+var client_num int64
+
 func main() {
 	c, err_c = config.ReadDefault("./config/sample.config.cfg")
 	if err_c != nil {
@@ -117,6 +119,8 @@ func startServer() {
 			continue
 		}
 
+		client_num++
+
 		go handler(conn)
 	}
 }
@@ -158,6 +162,8 @@ func handler(conn net.Conn) {
 			go exec(buf[0:n], conn)
 		}
 	}
+
+	client_num--
 }
 
 /**
@@ -198,4 +204,8 @@ func exec(command []byte, conn net.Conn) {
 	conn.Write(buf[0:n])
 
 	redis_conn.Lock.Unlock()
+}
+
+func monitor() {
+
 }

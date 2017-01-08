@@ -42,6 +42,8 @@ func main() {
 		ip_white_list_arr = strings.Split(ip_white_list, ",")
 	}
 
+	go monitor()
+
 	connectRedis()
 
 	for _, redis_conn := range redis_conns {
@@ -206,6 +208,7 @@ func exec(command []byte, conn net.Conn) {
 	redis_conn.Lock.Unlock()
 }
 
+// Telegraf monitor
 func monitor() {
 
 }

@@ -36,7 +36,9 @@ func main() {
 	if err_ip_white_list != nil {
 		panic(err_ip_white_list)
 	}
-	ip_white_list_arr = strings.Split(ip_white_list, ",")
+	if ip_white_list != "" {
+		ip_white_list_arr = strings.Split(ip_white_list, ",")
+	}
 
 	connectRedis()
 

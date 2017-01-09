@@ -7,6 +7,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 )
 
 type RedisConn struct {
@@ -208,7 +209,29 @@ func exec(command []byte, conn net.Conn) {
 	redis_conn.Lock.Unlock()
 }
 
+/**
+ * Get telegraf tcp connection
+ */
+func getTelegrafConn() net.Conn {
+	telegraf_conn, err := net.Dial("tcp", "127.0.0.1:8094")
+	if err != nil {
+		panic(err)
+	}
+
+	return telegraf_conn
+}
+
 // Telegraf monitor
 func monitor() {
+	telegraf_conn := getTelegrafConn()
 
+	for {
+		_, err := telegraf_conn.Write([]byte(""))
+		if err != nil {
+			telegraf_conn = getTelegrafConn()
+		}
+
+		t := time.NewTimer(time.Second * time.Duration(1))
+		<-t.C
+	}
 }

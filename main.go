@@ -221,13 +221,15 @@ func getTelegrafConn() net.Conn {
 	return telegraf_conn
 }
 
-// Telegraf monitor
+/**
+ * Telegraf monitor
+ */
 func monitor() {
 	telegraf_conn := getTelegrafConn()
 
 	for {
 		client_count := string(client_num)
-		if client_count == "" {
+		if client_num == 0 {
 			client_count = "0"
 		}
 		_, err := telegraf_conn.Write([]byte("redis_proxy client_count=" + client_count + "\n"))

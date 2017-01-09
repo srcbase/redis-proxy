@@ -7,6 +7,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 )
 
 type RedisConn struct {
@@ -26,6 +27,8 @@ var err_c error
 
 var ip_white_list_arr []string
 
+var client_num int64
+
 func main() {
 	c, err_c = config.ReadDefault("./config/sample.config.cfg")
 	if err_c != nil {
@@ -39,6 +42,8 @@ func main() {
 	if ip_white_list != "" {
 		ip_white_list_arr = strings.Split(ip_white_list, ",")
 	}
+
+	go monitor()
 
 	connectRedis()
 
@@ -117,6 +122,8 @@ func startServer() {
 			continue
 		}
 
+		client_num++
+
 		go handler(conn)
 	}
 }
@@ -158,6 +165,8 @@ func handler(conn net.Conn) {
 			go exec(buf[0:n], conn)
 		}
 	}
+
+	client_num--
 }
 
 /**
@@ -198,4 +207,31 @@ func exec(command []byte, conn net.Conn) {
 	conn.Write(buf[0:n])
 
 	redis_conn.Lock.Unlock()
+}
+
+/**
+ * Get telegraf tcp connection
+ */
+func getTelegrafConn() net.Conn {
+	telegraf_conn, err := net.Dial("tcp", "127.0.0.1:8094")
+	if err != nil {
+		panic(err)
+	}
+
+	return telegraf_conn
+}
+
+// Telegraf monitor
+func monitor() {
+	telegraf_conn := getTelegrafConn()
+
+	for {
+		_, err := telegraf_conn.Write([]byte(""))
+		if err != nil {
+			telegraf_conn = getTelegrafConn()
+		}
+
+		t := time.NewTimer(time.Second * time.Duration(1))
+		<-t.C
+	}
 }

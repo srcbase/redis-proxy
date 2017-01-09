@@ -165,8 +165,6 @@ func handler(conn net.Conn) {
 			go exec(buf[0:n], conn)
 		}
 	}
-
-	client_num--
 }
 
 /**
@@ -213,7 +211,15 @@ func exec(command []byte, conn net.Conn) {
  * Get telegraf tcp connection
  */
 func getTelegrafConn() net.Conn {
-	telegraf_conn, err := net.Dial("tcp", "127.0.0.1:8094")
+	telegraf_monitor_host, telegraf_monitor_host_err := c.String("telegraf-monitor", "host")
+	if telegraf_monitor_host_err != nil {
+		panic(telegraf_monitor_host_err)
+	}
+	telegraf_monitor_port, telegraf_monitor_port_err := c.String("telegraf-monitor", "port")
+	if telegraf_monitor_port_err != nil {
+		panic(telegraf_monitor_port_err)
+	}
+	telegraf_conn, err := net.Dial("tcp", telegraf_monitor_host + ":" + telegraf_monitor_port)
 	if err != nil {
 		panic(err)
 	}

@@ -226,7 +226,11 @@ func monitor() {
 	telegraf_conn := getTelegrafConn()
 
 	for {
-		_, err := telegraf_conn.Write([]byte("redis_proxy,client_count=" + string(client_num)))
+		client_count := string(client_num)
+		if client_count == "" {
+			client_count = "0"
+		}
+		_, err := telegraf_conn.Write([]byte("redis_proxy,client_count=" + client_count + "\n"))
 		if err != nil {
 			telegraf_conn = getTelegrafConn()
 		}

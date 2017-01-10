@@ -198,17 +198,15 @@ func exec(command []byte, conn net.Conn) {
 
 	buf := make([]byte, 65535)
 	resp := ""
-	len := 0
 	for {
-		n, err2 := redis_conn.Conn.Read(buf[len:])
+		n, err2 := redis_conn.Conn.Read(buf[0:])
 		if err2 != nil {
 			panic(err2)
 		}
-		if n <= 0 {
+		resp += string(buf[0:n])
+		if n <= 65535 {
 			break
 		}
-		resp += string(buf[len:n])
-		len += n
 	}
 
 	conn.Write([]byte(resp))

@@ -197,12 +197,19 @@ func exec(command []byte, conn net.Conn) {
 	}
 
 	buf := make([]byte, 65535)
-	n, err2 := redis_conn.Conn.Read(buf[0:])
-	if err2 != nil {
-		panic(err2)
+	resp := ""
+	for {
+		n, err2 := redis_conn.Conn.Read(buf[0:])
+		if err2 != nil {
+			panic(err2)
+		}
+		if n <= 0 {
+			break
+		}
+		resp += string(buf[0:n])
 	}
 
-	conn.Write(buf[0:n])
+	conn.Write([]byte(resp))
 
 	redis_conn.Lock.Unlock()
 }
@@ -219,7 +226,7 @@ func getTelegrafConn() net.Conn {
 	if telegraf_monitor_port_err != nil {
 		panic(telegraf_monitor_port_err)
 	}
-	telegraf_conn, err := net.Dial("tcp", telegraf_monitor_host + ":" + telegraf_monitor_port)
+	telegraf_conn, err := net.Dial("tcp", telegraf_monitor_host+":"+telegraf_monitor_port)
 	if err != nil {
 		panic(err)
 	}

@@ -27,7 +27,9 @@ var err_c error
 
 var ip_white_list_arr []string
 
-var client_num int64
+var client_num uint64
+
+const MAX_CLIENT_NUM = 18446744073709551615
 
 func main() {
 	c, err_c = config.ReadDefault("./config/sample.config.cfg")
@@ -122,7 +124,11 @@ func startServer() {
 			continue
 		}
 
-		client_num++
+		if client_num < MAX_CLIENT_NUM {
+			client_num++
+		} else {
+			client_num = 1
+		}
 
 		go handler(conn)
 	}

@@ -169,6 +169,8 @@ func handler(conn net.Conn) {
 
 		if n > 0 && commandFilter(command) {
 			go exec(buf[0:n], conn)
+		} else {
+			conn.Write([]byte("+OK\r\n"))
 		}
 	}
 }
@@ -182,9 +184,11 @@ func commandFilter(command string) bool {
 	if additional_banned_commands_err != nil {
 		panic(additional_banned_commands_err)
 	}
-	additional_banned_commands_arr := strings.Split(additional_banned_commands, ",")
-	for _, additional_banned_command := range additional_banned_commands_arr {
-		banned_commands = append(banned_commands, additional_banned_command)
+	if additional_banned_commands != "" {
+		additional_banned_commands_arr := strings.Split(additional_banned_commands, ",")
+		for _, additional_banned_command := range additional_banned_commands_arr {
+			banned_commands = append(banned_commands, additional_banned_command)
+		}
 	}
 
 	command = strings.ToLower(command)

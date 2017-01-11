@@ -290,7 +290,7 @@ func monitor() {
 
 	for {
 		select {
-		case ev := <-signal:
+		case ev := <-monitor_signal:
 			if ev {
 				fmt.Println("Monitor exited.")
 				return

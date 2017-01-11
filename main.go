@@ -32,6 +32,9 @@ var client_num uint64
 
 const MAX_CLIENT_NUM = 18446744073709551615
 
+var monitor_signal chan bool
+var monitor_lock sync.Mutex
+
 func main() {
 	c, err_c = config.ReadDefault("./config/sample.config.cfg")
 	if err_c != nil {
@@ -46,7 +49,9 @@ func main() {
 		ip_white_list_arr = strings.Split(ip_white_list, ",")
 	}
 
-	go monitor()
+	go watchFile("./config/sample.config.cfg")
+
+	go monitor(monitor_signal)
 
 	connectRedis()
 
@@ -272,10 +277,23 @@ func getTelegrafConn() net.Conn {
 /**
  * Telegraf monitor
  */
-func monitor() {
+func monitor(signal chan bool) {
+	monitor_lock.Lock()
+	defer monitor_lock.Unlock()
+
 	telegraf_conn := getTelegrafConn()
 
+	fmt.Println("Monitor started.")
+
 	for {
+		select {
+		case ev := <-signal:
+			if ev {
+				fmt.Println("Monitor exited.")
+				return
+			}
+		}
+
 		_, err := telegraf_conn.Write([]byte("redis_proxy client_count=" + fmt.Sprintf("%d", client_num) + "\n"))
 		if err != nil {
 			telegraf_conn = getTelegrafConn()
@@ -286,6 +304,9 @@ func monitor() {
 	}
 }
 
+/**
+ * Watch File
+ */
 func watchFile(filename string) {
 	watcher, _ := fsnotify.NewWatcher()
 
@@ -294,7 +315,9 @@ func watchFile(filename string) {
 			select {
 			case ev := <-watcher.Event:
 				if ev.IsModify() {
-					//todo do something
+					monitor_signal <- true
+					go monitor(monitor_signal)
+
 					watcher.Watch(filename)
 				}
 			case err := <-watcher.Error:

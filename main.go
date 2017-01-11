@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/howeyc/fsnotify"
 	. "github.com/luoxiaojun1992/redis-proxy/lib/helper"
 	"github.com/robfig/config"
 	"net"
@@ -283,4 +284,24 @@ func monitor() {
 		t := time.NewTimer(time.Second * time.Duration(1))
 		<-t.C
 	}
+}
+
+func watchFile(filename string) {
+	watcher, _ := fsnotify.NewWatcher()
+
+	go func() {
+		for {
+			select {
+			case ev := <-watcher.Event:
+				if ev.IsModify() {
+					//todo do something
+					watcher.Watch(filename)
+				}
+			case err := <-watcher.Error:
+				fmt.Println(err)
+			}
+		}
+	}()
+
+	watcher.Watch(filename)
 }

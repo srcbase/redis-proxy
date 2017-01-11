@@ -49,9 +49,11 @@ func main() {
 		ip_white_list_arr = strings.Split(ip_white_list, ",")
 	}
 
+	monitor_signal = make(chan bool)
+
 	go watchFile("./config/sample.config.cfg")
 
-	go monitor(monitor_signal)
+	go monitor()
 
 	connectRedis()
 
@@ -277,7 +279,7 @@ func getTelegrafConn() net.Conn {
 /**
  * Telegraf monitor
  */
-func monitor(signal chan bool) {
+func monitor() {
 	monitor_lock.Lock()
 	defer monitor_lock.Unlock()
 
@@ -287,15 +289,15 @@ func monitor(signal chan bool) {
 	fmt.Println("Monitor started.")
 
 	for {
-		/**
 		select {
 		case ev := <-signal:
 			if ev {
 				fmt.Println("Monitor exited.")
 				return
 			}
+		default:
+			//
 		}
-		**/
 
 		_, err := telegraf_conn.Write([]byte("redis_proxy client_count=" + fmt.Sprintf("%d", client_num) + "\n"))
 		if err != nil {
@@ -321,7 +323,7 @@ func watchFile(filename string) {
 					fmt.Println("Config file modified.")
 
 					monitor_signal <- true
-					go monitor(monitor_signal)
+					go monitor()
 
 					watcher.Watch(filename)
 				}

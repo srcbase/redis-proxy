@@ -167,10 +167,34 @@ func handler(conn net.Conn) {
 			break
 		}
 
-		if n > 0 && !strings.Contains(command, "AUTH") {
+		if n > 0 && commandFilter(command) {
 			go exec(buf[0:n], conn)
 		}
 	}
+}
+
+/**
+ * Filter dangerous commands
+ */
+func commandFilter(command string) bool {
+	banned_commands := []string{"flushall", "flushdb", "keys", "auth"}
+	additional_banned_commands, additional_banned_commands_err := c.String("security-review", "banned-commands")
+	if additional_banned_commands_err != nil {
+		panic(additional_banned_commands_err)
+	}
+	additional_banned_commands_arr := strings.Split(additional_banned_commands, ",")
+	for _, additional_banned_command := range additional_banned_commands_arr {
+		banned_commands = append(banned_commands, additional_banned_command)
+	}
+
+	command = strings.ToLower(command)
+	for _, banned_command := range banned_commands {
+		if strings.Contains(command, banned_command) {
+			return false
+		}
+	}
+
+	return true
 }
 
 /**

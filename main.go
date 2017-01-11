@@ -286,8 +286,6 @@ func monitor(signal chan bool) {
 
 	fmt.Println("Monitor started.")
 
-	fmt.Println("Monitor started.")
-
 	for {
 		/**
 		select {

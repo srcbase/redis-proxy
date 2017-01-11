@@ -322,6 +322,7 @@ func watchFile(filename string) {
 				if ev.IsModify() {
 					fmt.Println("Config file modified.")
 
+					// Restart telegraf monitor
 					monitor_signal <- true
 					go monitor()
 

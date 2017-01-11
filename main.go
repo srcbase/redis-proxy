@@ -282,10 +282,14 @@ func monitor(signal chan bool) {
 	defer monitor_lock.Unlock()
 
 	telegraf_conn := getTelegrafConn()
+	defer telegraf_conn.Close()
+
+	fmt.Println("Monitor started.")
 
 	fmt.Println("Monitor started.")
 
 	for {
+		/**
 		select {
 		case ev := <-signal:
 			if ev {
@@ -293,6 +297,7 @@ func monitor(signal chan bool) {
 				return
 			}
 		}
+		**/
 
 		_, err := telegraf_conn.Write([]byte("redis_proxy client_count=" + fmt.Sprintf("%d", client_num) + "\n"))
 		if err != nil {
@@ -315,6 +320,8 @@ func watchFile(filename string) {
 			select {
 			case ev := <-watcher.Event:
 				if ev.IsModify() {
+					fmt.Println("Config file modified.")
+
 					monitor_signal <- true
 					go monitor(monitor_signal)
 

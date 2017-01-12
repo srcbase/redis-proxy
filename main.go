@@ -1,9 +1,11 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/howeyc/fsnotify"
 	. "github.com/luoxiaojun1992/redis-proxy/lib/helper"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/robfig/config"
 	"net"
 	"strings"
@@ -44,6 +46,8 @@ func main() {
 	}
 
 	parseIpWhiteList()
+
+	connectSqlite()
 
 	monitor_signal = make(chan bool)
 
@@ -352,4 +356,11 @@ func watchFile(filename string) {
 	}()
 
 	watcher.Watch(filename)
+}
+
+func connectSqlite() {
+	_, err := sql.Open("sqlite3", "./redis_proxy.db")
+	if err != nil {
+		panic(err)
+	}
 }

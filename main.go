@@ -35,19 +35,15 @@ const MAX_CLIENT_NUM = 18446744073709551615
 var monitor_signal chan bool
 var monitor_lock sync.Mutex
 
+var ip_white_list_lock sync.Mutex
+
 func main() {
 	c, err_c = config.ReadDefault("./config/sample.config.cfg")
 	if err_c != nil {
 		panic(err_c)
 	}
 
-	ip_white_list, err_ip_white_list := c.String("access-control", "ip-white-list")
-	if err_ip_white_list != nil {
-		panic(err_ip_white_list)
-	}
-	if ip_white_list != "" {
-		ip_white_list_arr = strings.Split(ip_white_list, ",")
-	}
+	parseIpWhiteList()
 
 	monitor_signal = make(chan bool)
 
@@ -62,6 +58,21 @@ func main() {
 	}
 
 	startServer()
+}
+
+/**
+ * Parse ip white list
+ */
+func parseIpWhiteList() {
+	ip_white_list, err_ip_white_list := c.String("access-control", "ip-white-list")
+	if err_ip_white_list != nil {
+		panic(err_ip_white_list)
+	}
+	if ip_white_list != "" {
+		ip_white_list_lock.Lock()
+		ip_white_list_arr = strings.Split(ip_white_list, ",")
+		ip_white_list_lock.Unlock()
+	}
 }
 
 /**
@@ -146,13 +157,16 @@ func startServer() {
  * Check ip limit
  */
 func checkIp(conn net.Conn) bool {
+	ip_white_list_lock.Lock()
 	if len(ip_white_list_arr) > 0 {
 		host, _, err_host_port := net.SplitHostPort(conn.RemoteAddr().String())
 		if err_host_port != nil || !InStringArray(host, ip_white_list_arr) {
 			conn.Close()
+			ip_white_list_lock.Unlock()
 			return false
 		}
 	}
+	ip_white_list_lock.Unlock()
 
 	return true
 }
@@ -325,6 +339,9 @@ func watchFile(filename string) {
 					// Restart telegraf monitor
 					monitor_signal <- true
 					go monitor()
+
+					// Reset ip white list
+					parseIpWhiteList()
 
 					watcher.Watch(filename)
 				}

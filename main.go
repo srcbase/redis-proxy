@@ -32,9 +32,6 @@ var ip_white_list_arr []string
 
 var client_num uint64
 
-var monitor_signal chan bool
-var monitor_lock sync.Mutex
-
 var ip_white_list_lock sync.Mutex
 
 var sqlite_conn *sql.DB
@@ -50,11 +47,11 @@ func main() {
 	loadStatsData()
 	go statsPersistent()
 
-	monitor_signal = make(chan bool)
+	Monitor_signal = make(chan bool)
 
 	go watchFile("./config/sample.config.cfg")
 
-	go monitor(&client_num, c)
+	go Monitor(&client_num, c)
 
 	connectRedis()
 
@@ -252,53 +249,6 @@ func exec(command []byte, conn net.Conn) {
 }
 
 /**
- * Get telegraf tcp connection
- */
-func getTelegrafConn() net.Conn {
-	telegraf_monitor_host, telegraf_monitor_host_err := c.String("telegraf-monitor", "host")
-	CheckErr(telegraf_monitor_host_err)
-	telegraf_monitor_port, telegraf_monitor_port_err := c.String("telegraf-monitor", "port")
-	CheckErr(telegraf_monitor_port_err)
-	telegraf_conn, err := net.Dial("tcp", telegraf_monitor_host+":"+telegraf_monitor_port)
-	CheckErr(err)
-
-	return telegraf_conn
-}
-
-/**
- * Telegraf monitor
- */
-func monitor() {
-	monitor_lock.Lock()
-	defer monitor_lock.Unlock()
-
-	telegraf_conn := getTelegrafConn()
-	defer telegraf_conn.Close()
-
-	fmt.Println("Monitor started.")
-
-	for {
-		select {
-		case ev := <-monitor_signal:
-			if ev {
-				fmt.Println("Monitor exited.")
-				return
-			}
-		default:
-			//
-		}
-
-		_, err := telegraf_conn.Write([]byte("redis_proxy client_count=" + fmt.Sprintf("%d", client_num) + "\n"))
-		if err != nil {
-			telegraf_conn = getTelegrafConn()
-		}
-
-		t := time.NewTimer(time.Second * time.Duration(1))
-		<-t.C
-	}
-}
-
-/**
  * Watch File
  */
 func watchFile(filename string) {
@@ -312,8 +262,8 @@ func watchFile(filename string) {
 					fmt.Println("Config file modified.")
 
 					// Restart telegraf monitor
-					monitor_signal <- true
-					go monitor(&client_num, c)
+					Monitor_signal <- true
+					go Monitor(&client_num, c)
 
 					// Reset ip white list
 					parseIpWhiteList()

@@ -5,8 +5,12 @@ import (
 	. "github.com/luoxiaojun1992/redis-proxy/lib/helper"
 	"github.com/robfig/config"
 	"net"
+	"sync"
 	"time"
 )
+
+var Monitor_signal chan bool
+var Monitor_lock sync.Mutex
 
 /**
  * Get telegraf tcp connection
@@ -26,8 +30,8 @@ func GetTelegrafConn(c *config.Config) net.Conn {
  * Telegraf monitor
  */
 func Monitor(client_num *uint64, c *config.Config) {
-	monitor_lock.Lock()
-	defer monitor_lock.Unlock()
+	Monitor_lock.Lock()
+	defer Monitor_lock.Unlock()
 
 	telegraf_conn := GetTelegrafConn(c)
 	defer telegraf_conn.Close()
@@ -36,7 +40,7 @@ func Monitor(client_num *uint64, c *config.Config) {
 
 	for {
 		select {
-		case ev := <-monitor_signal:
+		case ev := <-Monitor_signal:
 			if ev {
 				fmt.Println("Monitor exited.")
 				return

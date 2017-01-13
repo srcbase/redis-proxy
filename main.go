@@ -89,25 +89,17 @@ func connectRedis() {
 	CheckErr(err_redis_host)
 
 	redis_port, err_redis_port := c.String("redis-server", "port")
-	if err_redis_port != nil {
-		panic(err_redis_port)
-	}
+	CheckErr(err_redis_port)
 
 	redis_password, err_redis_password := c.String("redis-server", "password")
-	if err_redis_password != nil {
-		panic(err_redis_password)
-	}
+	CheckErr(err_redis_password)
 
 	for i := 0; i < REDIS_CONNS_TOTAL; i++ {
 		redis_conn, err := net.Dial("tcp", redis_host+":"+redis_port)
-		if err != nil {
-			panic(err)
-		}
+		CheckErr(err)
 
 		_, err2 := redis_conn.Write([]byte("AUTH " + redis_password + "\r\nSELECT 0\r\n"))
-		if err2 != nil {
-			panic(err2)
-		}
+		CheckErr(err2)
 
 		buf := make([]byte, 4096)
 		redis_conn.Read(buf)
@@ -128,20 +120,14 @@ func startServer() {
 	fmt.Println("Starting redis proxy...")
 
 	tcp_server_port, err_tcp_server_port := c.String("tcp-server", "port")
-	if err_tcp_server_port != nil {
-		panic(err_tcp_server_port)
-	}
+	CheckErr(err_tcp_server_port)
 
 	l, err := net.Listen("tcp", "0.0.0.0:"+tcp_server_port)
-	if err != nil {
-		panic(err)
-	}
+	CheckErr(err)
 
 	for {
 		conn, err2 := l.Accept()
-		if err2 != nil {
-			panic(err2)
-		}
+		CheckErr(err2)
 
 		if !checkIp(conn) {
 			continue
@@ -207,9 +193,7 @@ func handler(conn net.Conn) {
 func commandFilter(command string) bool {
 	banned_commands := []string{"flushall", "flushdb", "keys", "auth"}
 	additional_banned_commands, additional_banned_commands_err := c.String("security-review", "banned-commands")
-	if additional_banned_commands_err != nil {
-		panic(additional_banned_commands_err)
-	}
+	CheckErr(additional_banned_commands_err)
 	if additional_banned_commands != "" {
 		additional_banned_commands_arr := strings.Split(additional_banned_commands, ",")
 		for _, additional_banned_command := range additional_banned_commands_arr {
@@ -252,17 +236,13 @@ func exec(command []byte, conn net.Conn) {
 	redis_conn.Lock.Lock()
 
 	_, err := redis_conn.Conn.Write(command)
-	if err != nil {
-		panic(err)
-	}
+	CheckErr(err)
 
 	buf := make([]byte, 65535)
 	resp := ""
 	for {
 		n, err2 := redis_conn.Conn.Read(buf[0:])
-		if err2 != nil {
-			panic(err2)
-		}
+		CheckErr(err2)
 		resp += string(buf[0:n])
 		if n <= 65535 {
 			break
@@ -279,17 +259,11 @@ func exec(command []byte, conn net.Conn) {
  */
 func getTelegrafConn() net.Conn {
 	telegraf_monitor_host, telegraf_monitor_host_err := c.String("telegraf-monitor", "host")
-	if telegraf_monitor_host_err != nil {
-		panic(telegraf_monitor_host_err)
-	}
+	CheckErr(telegraf_monitor_host_err)
 	telegraf_monitor_port, telegraf_monitor_port_err := c.String("telegraf-monitor", "port")
-	if telegraf_monitor_port_err != nil {
-		panic(telegraf_monitor_port_err)
-	}
+	CheckErr(telegraf_monitor_port_err)
 	telegraf_conn, err := net.Dial("tcp", telegraf_monitor_host+":"+telegraf_monitor_port)
-	if err != nil {
-		panic(err)
-	}
+	CheckErr(err)
 
 	return telegraf_conn
 }
@@ -364,15 +338,11 @@ func watchFile(filename string) {
 func connectSqlite() {
 	var sqlite_conn_err error
 	sqlite_conn, sqlite_conn_err = sql.Open("sqlite3", "./redis_proxy.db")
-	if sqlite_conn_err != nil {
-		panic(sqlite_conn_err)
-	}
+	CheckErr(sqlite_conn_err)
 
 	createTableSqlStmt := `create table if not exists stats (id integer not null primary key, metric string not null default "", value integer not null default 0)`
 	_, create_table_err := sqlite_conn.Exec(createTableSqlStmt)
-	if create_table_err != nil {
-		panic(create_table_err)
-	}
+	CheckErr(create_table_err)
 }
 
 /**
@@ -380,15 +350,11 @@ func connectSqlite() {
  */
 func loadStatsData() {
 	stmt, err := sqlite_conn.Prepare("select value from stats where metric = 'client_num'")
-	if err != nil {
-		panic(err)
-	}
+	CheckErr(err)
 	defer stmt.Close()
 
 	query_err := stmt.QueryRow().Scan(&client_num)
-	if query_err != nil {
-		panic(query_err)
-	}
+	CheckErr(query_err)
 }
 
 /**
@@ -396,28 +362,20 @@ func loadStatsData() {
  */
 func statsPersistent() {
 	stmt, err := sqlite_conn.Prepare("UPDATE stats SET value = ? WHERE metric = 'client_num'")
-	if err != nil {
-		panic(err)
-	}
+	CheckErr(err)
 	defer stmt.Close()
 
 	frequency, frequency_err := c.String("stats-persistent", "frequency")
-	if frequency_err != nil {
-		panic(frequency_err)
-	}
+	CheckErr(frequency_err)
 	if frequency == "" {
 		frequency = "1"
 	}
 	frequency_num, err_frequency_num := strconv.Atoi(frequency)
-	if err_frequency_num != nil {
-		panic(err_frequency_num)
-	}
+	CheckErr(err_frequency_num)
 
 	for {
 		_, exec_err := stmt.Exec(client_num)
-		if exec_err != nil {
-			panic(exec_err)
-		}
+		CheckErr(exec_err)
 
 		t := time.NewTimer(time.Second * time.Duration(frequency_num))
 		<-t.C

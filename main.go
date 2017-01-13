@@ -359,8 +359,25 @@ func watchFile(filename string) {
 }
 
 func connectSqlite() {
-	_, err := sql.Open("sqlite3", "./redis_proxy.db")
+	db, err := sql.Open("sqlite3", "./redis_proxy.db")
 	if err != nil {
 		panic(err)
+	}
+	defer db.Close()
+
+	sqlStmt := `create table if not exists stats (id integer not null primary key, client_num integer not null default 0);`
+	_, err2 := db.Exec(sqlStmt)
+	if err2 != nil {
+		panic(err2)
+	}
+
+	stmt, err3 := db.Prepare("INSERT INTO stats(client_num) values(?)")
+	if err3 != nil {
+		panic(err3)
+	}
+
+	_, err4 := stmt.Exec(0)
+	if err4 != nil {
+		panic(err4)
 	}
 }

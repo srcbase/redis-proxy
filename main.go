@@ -44,9 +44,7 @@ var sqlite_conn *sql.DB
 
 func main() {
 	c, err_c = config.ReadDefault("./config/sample.config.cfg")
-	if err_c != nil {
-		panic(err_c)
-	}
+	CheckErr(err_c)
 
 	parseIpWhiteList()
 
@@ -75,9 +73,7 @@ func main() {
  */
 func parseIpWhiteList() {
 	ip_white_list, err_ip_white_list := c.String("access-control", "ip-white-list")
-	if err_ip_white_list != nil {
-		panic(err_ip_white_list)
-	}
+	CheckErr(err_ip_white_list)
 	if ip_white_list != "" {
 		ip_white_list_lock.Lock()
 		ip_white_list_arr = strings.Split(ip_white_list, ",")
@@ -90,9 +86,7 @@ func parseIpWhiteList() {
  */
 func connectRedis() {
 	redis_host, err_redis_host := c.String("redis-server", "host")
-	if err_redis_host != nil {
-		panic(err_redis_host)
-	}
+	CheckErr(err_redis_host)
 
 	redis_port, err_redis_port := c.String("redis-server", "port")
 	if err_redis_port != nil {

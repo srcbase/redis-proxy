@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/howeyc/fsnotify"
 	. "github.com/luoxiaojun1992/redis-proxy/lib/helper"
+	. "github.com/luoxiaojun1992/redis-proxy/lib/monitor"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/robfig/config"
 	"net"
@@ -21,8 +22,6 @@ type RedisConn struct {
 
 var redis_conns []*RedisConn
 
-const REDIS_CONNS_TOTAL = 200
-
 var start_index int
 var start_index_lock sync.Mutex
 
@@ -32,8 +31,6 @@ var err_c error
 var ip_white_list_arr []string
 
 var client_num uint64
-
-const MAX_CLIENT_NUM = 18446744073709551615
 
 var monitor_signal chan bool
 var monitor_lock sync.Mutex
@@ -57,7 +54,7 @@ func main() {
 
 	go watchFile("./config/sample.config.cfg")
 
-	go monitor()
+	go monitor(&client_num, c)
 
 	connectRedis()
 
@@ -316,7 +313,7 @@ func watchFile(filename string) {
 
 					// Restart telegraf monitor
 					monitor_signal <- true
-					go monitor()
+					go monitor(&client_num, c)
 
 					// Reset ip white list
 					parseIpWhiteList()

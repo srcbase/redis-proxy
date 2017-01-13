@@ -44,8 +44,8 @@ func main() {
 
 	connectSqlite()
 	defer sqlite_conn.Close()
-	loadStatsData()
-	go statsPersistent()
+	LoadStatsData(sqlite_conn, &client_num)
+	go StatsPersistent(sqlite_conn, &client_num)
 
 	Monitor_signal = make(chan bool)
 
@@ -290,41 +290,4 @@ func connectSqlite() {
 	createTableSqlStmt := `create table if not exists stats (id integer not null primary key, metric string not null default "", value integer not null default 0)`
 	_, create_table_err := sqlite_conn.Exec(createTableSqlStmt)
 	CheckErr(create_table_err)
-}
-
-/**
- * Load stats data from db
- */
-func loadStatsData() {
-	stmt, err := sqlite_conn.Prepare("select value from stats where metric = 'client_num'")
-	CheckErr(err)
-	defer stmt.Close()
-
-	query_err := stmt.QueryRow().Scan(&client_num)
-	CheckErr(query_err)
-}
-
-/**
- * Stats data persistent
- */
-func statsPersistent() {
-	stmt, err := sqlite_conn.Prepare("UPDATE stats SET value = ? WHERE metric = 'client_num'")
-	CheckErr(err)
-	defer stmt.Close()
-
-	frequency, frequency_err := c.String("stats-persistent", "frequency")
-	CheckErr(frequency_err)
-	if frequency == "" {
-		frequency = "1"
-	}
-	frequency_num, err_frequency_num := strconv.Atoi(frequency)
-	CheckErr(err_frequency_num)
-
-	for {
-		_, exec_err := stmt.Exec(client_num)
-		CheckErr(exec_err)
-
-		t := time.NewTimer(time.Second * time.Duration(frequency_num))
-		<-t.C
-	}
 }

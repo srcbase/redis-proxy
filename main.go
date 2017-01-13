@@ -8,6 +8,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/robfig/config"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -406,13 +407,25 @@ func statsPersistent() {
 	}
 	defer stmt.Close()
 
+	frequency, frequency_err := c.String("stats-persistent", "frequency")
+	if frequency_err != nil {
+		panic(frequency_err)
+	}
+	if frequency == "" {
+		frequency = "1"
+	}
+	frequency_num, err_frequency_num := strconv.Atoi(frequency)
+	if err_frequency_num != nil {
+		panic(err_frequency_num)
+	}
+
 	for {
 		_, exec_err := stmt.Exec(client_num)
 		if exec_err != nil {
 			panic(exec_err)
 		}
 
-		t := time.NewTimer(time.Second * time.Duration(1))
+		t := time.NewTimer(time.Second * time.Duration(frequency_num))
 		<-t.C
 	}
 }

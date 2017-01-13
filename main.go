@@ -9,10 +9,8 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/robfig/config"
 	"net"
-	"strconv"
 	"strings"
 	"sync"
-	"time"
 )
 
 type RedisConn struct {

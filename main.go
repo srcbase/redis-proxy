@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/howeyc/fsnotify"
 	. "github.com/luoxiaojun1992/redis-proxy/lib/helper"
+	. "github.com/luoxiaojun1992/redis-proxy/lib/monitor"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/robfig/config"
 	"net"
@@ -21,8 +22,6 @@ type RedisConn struct {
 
 var redis_conns []*RedisConn
 
-const REDIS_CONNS_TOTAL = 200
-
 var start_index int
 var start_index_lock sync.Mutex
 
@@ -33,33 +32,26 @@ var ip_white_list_arr []string
 
 var client_num uint64
 
-const MAX_CLIENT_NUM = 18446744073709551615
-
-var monitor_signal chan bool
-var monitor_lock sync.Mutex
-
 var ip_white_list_lock sync.Mutex
 
 var sqlite_conn *sql.DB
 
 func main() {
 	c, err_c = config.ReadDefault("./config/sample.config.cfg")
-	if err_c != nil {
-		panic(err_c)
-	}
+	CheckErr(err_c)
 
 	parseIpWhiteList()
 
 	connectSqlite()
 	defer sqlite_conn.Close()
-	loadStatsData()
-	go statsPersistent()
+	LoadStatsData(sqlite_conn, &client_num)
+	go StatsPersistent(sqlite_conn, &client_num)
 
-	monitor_signal = make(chan bool)
+	Monitor_signal = make(chan bool)
 
 	go watchFile("./config/sample.config.cfg")
 
-	go monitor()
+	go Monitor(&client_num, c)
 
 	connectRedis()
 
@@ -75,9 +67,7 @@ func main() {
  */
 func parseIpWhiteList() {
 	ip_white_list, err_ip_white_list := c.String("access-control", "ip-white-list")
-	if err_ip_white_list != nil {
-		panic(err_ip_white_list)
-	}
+	CheckErr(err_ip_white_list)
 	if ip_white_list != "" {
 		ip_white_list_lock.Lock()
 		ip_white_list_arr = strings.Split(ip_white_list, ",")
@@ -90,30 +80,20 @@ func parseIpWhiteList() {
  */
 func connectRedis() {
 	redis_host, err_redis_host := c.String("redis-server", "host")
-	if err_redis_host != nil {
-		panic(err_redis_host)
-	}
+	CheckErr(err_redis_host)
 
 	redis_port, err_redis_port := c.String("redis-server", "port")
-	if err_redis_port != nil {
-		panic(err_redis_port)
-	}
+	CheckErr(err_redis_port)
 
 	redis_password, err_redis_password := c.String("redis-server", "password")
-	if err_redis_password != nil {
-		panic(err_redis_password)
-	}
+	CheckErr(err_redis_password)
 
 	for i := 0; i < REDIS_CONNS_TOTAL; i++ {
 		redis_conn, err := net.Dial("tcp", redis_host+":"+redis_port)
-		if err != nil {
-			panic(err)
-		}
+		CheckErr(err)
 
 		_, err2 := redis_conn.Write([]byte("AUTH " + redis_password + "\r\nSELECT 0\r\n"))
-		if err2 != nil {
-			panic(err2)
-		}
+		CheckErr(err2)
 
 		buf := make([]byte, 4096)
 		redis_conn.Read(buf)
@@ -134,20 +114,14 @@ func startServer() {
 	fmt.Println("Starting redis proxy...")
 
 	tcp_server_port, err_tcp_server_port := c.String("tcp-server", "port")
-	if err_tcp_server_port != nil {
-		panic(err_tcp_server_port)
-	}
+	CheckErr(err_tcp_server_port)
 
 	l, err := net.Listen("tcp", "0.0.0.0:"+tcp_server_port)
-	if err != nil {
-		panic(err)
-	}
+	CheckErr(err)
 
 	for {
 		conn, err2 := l.Accept()
-		if err2 != nil {
-			panic(err2)
-		}
+		CheckErr(err2)
 
 		if !checkIp(conn) {
 			continue
@@ -213,9 +187,7 @@ func handler(conn net.Conn) {
 func commandFilter(command string) bool {
 	banned_commands := []string{"flushall", "flushdb", "keys", "auth"}
 	additional_banned_commands, additional_banned_commands_err := c.String("security-review", "banned-commands")
-	if additional_banned_commands_err != nil {
-		panic(additional_banned_commands_err)
-	}
+	CheckErr(additional_banned_commands_err)
 	if additional_banned_commands != "" {
 		additional_banned_commands_arr := strings.Split(additional_banned_commands, ",")
 		for _, additional_banned_command := range additional_banned_commands_arr {
@@ -258,17 +230,13 @@ func exec(command []byte, conn net.Conn) {
 	redis_conn.Lock.Lock()
 
 	_, err := redis_conn.Conn.Write(command)
-	if err != nil {
-		panic(err)
-	}
+	CheckErr(err)
 
 	buf := make([]byte, 65535)
 	resp := ""
 	for {
 		n, err2 := redis_conn.Conn.Read(buf[0:])
-		if err2 != nil {
-			panic(err2)
-		}
+		CheckErr(err2)
 		resp += string(buf[0:n])
 		if n <= 65535 {
 			break
@@ -278,59 +246,6 @@ func exec(command []byte, conn net.Conn) {
 	conn.Write([]byte(resp))
 
 	redis_conn.Lock.Unlock()
-}
-
-/**
- * Get telegraf tcp connection
- */
-func getTelegrafConn() net.Conn {
-	telegraf_monitor_host, telegraf_monitor_host_err := c.String("telegraf-monitor", "host")
-	if telegraf_monitor_host_err != nil {
-		panic(telegraf_monitor_host_err)
-	}
-	telegraf_monitor_port, telegraf_monitor_port_err := c.String("telegraf-monitor", "port")
-	if telegraf_monitor_port_err != nil {
-		panic(telegraf_monitor_port_err)
-	}
-	telegraf_conn, err := net.Dial("tcp", telegraf_monitor_host+":"+telegraf_monitor_port)
-	if err != nil {
-		panic(err)
-	}
-
-	return telegraf_conn
-}
-
-/**
- * Telegraf monitor
- */
-func monitor() {
-	monitor_lock.Lock()
-	defer monitor_lock.Unlock()
-
-	telegraf_conn := getTelegrafConn()
-	defer telegraf_conn.Close()
-
-	fmt.Println("Monitor started.")
-
-	for {
-		select {
-		case ev := <-monitor_signal:
-			if ev {
-				fmt.Println("Monitor exited.")
-				return
-			}
-		default:
-			//
-		}
-
-		_, err := telegraf_conn.Write([]byte("redis_proxy client_count=" + fmt.Sprintf("%d", client_num) + "\n"))
-		if err != nil {
-			telegraf_conn = getTelegrafConn()
-		}
-
-		t := time.NewTimer(time.Second * time.Duration(1))
-		<-t.C
-	}
 }
 
 /**
@@ -347,8 +262,8 @@ func watchFile(filename string) {
 					fmt.Println("Config file modified.")
 
 					// Restart telegraf monitor
-					monitor_signal <- true
-					go monitor()
+					Monitor_signal <- true
+					go Monitor(&client_num, c)
 
 					// Reset ip white list
 					parseIpWhiteList()
@@ -370,62 +285,9 @@ func watchFile(filename string) {
 func connectSqlite() {
 	var sqlite_conn_err error
 	sqlite_conn, sqlite_conn_err = sql.Open("sqlite3", "./redis_proxy.db")
-	if sqlite_conn_err != nil {
-		panic(sqlite_conn_err)
-	}
+	CheckErr(sqlite_conn_err)
 
 	createTableSqlStmt := `create table if not exists stats (id integer not null primary key, metric string not null default "", value integer not null default 0)`
 	_, create_table_err := sqlite_conn.Exec(createTableSqlStmt)
-	if create_table_err != nil {
-		panic(create_table_err)
-	}
-}
-
-/**
- * Load stats data from db
- */
-func loadStatsData() {
-	stmt, err := sqlite_conn.Prepare("select value from stats where metric = 'client_num'")
-	if err != nil {
-		panic(err)
-	}
-	defer stmt.Close()
-
-	query_err := stmt.QueryRow().Scan(&client_num)
-	if query_err != nil {
-		panic(query_err)
-	}
-}
-
-/**
- * Stats data persistent
- */
-func statsPersistent() {
-	stmt, err := sqlite_conn.Prepare("UPDATE stats SET value = ? WHERE metric = 'client_num'")
-	if err != nil {
-		panic(err)
-	}
-	defer stmt.Close()
-
-	frequency, frequency_err := c.String("stats-persistent", "frequency")
-	if frequency_err != nil {
-		panic(frequency_err)
-	}
-	if frequency == "" {
-		frequency = "1"
-	}
-	frequency_num, err_frequency_num := strconv.Atoi(frequency)
-	if err_frequency_num != nil {
-		panic(err_frequency_num)
-	}
-
-	for {
-		_, exec_err := stmt.Exec(client_num)
-		if exec_err != nil {
-			panic(exec_err)
-		}
-
-		t := time.NewTimer(time.Second * time.Duration(frequency_num))
-		<-t.C
-	}
+	CheckErr(create_table_err)
 }

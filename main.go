@@ -1,11 +1,14 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"github.com/howeyc/fsnotify"
 	. "github.com/luoxiaojun1992/redis-proxy/lib/helper"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/robfig/config"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -37,6 +40,8 @@ var monitor_lock sync.Mutex
 
 var ip_white_list_lock sync.Mutex
 
+var sqlite_conn *sql.DB
+
 func main() {
 	c, err_c = config.ReadDefault("./config/sample.config.cfg")
 	if err_c != nil {
@@ -44,6 +49,11 @@ func main() {
 	}
 
 	parseIpWhiteList()
+
+	connectSqlite()
+	defer sqlite_conn.Close()
+	loadStatsData()
+	go statsPersistent()
 
 	monitor_signal = make(chan bool)
 
@@ -352,4 +362,70 @@ func watchFile(filename string) {
 	}()
 
 	watcher.Watch(filename)
+}
+
+/**
+ * Connect sqlite3
+ */
+func connectSqlite() {
+	var sqlite_conn_err error
+	sqlite_conn, sqlite_conn_err = sql.Open("sqlite3", "./redis_proxy.db")
+	if sqlite_conn_err != nil {
+		panic(sqlite_conn_err)
+	}
+
+	createTableSqlStmt := `create table if not exists stats (id integer not null primary key, metric string not null default "", value integer not null default 0)`
+	_, create_table_err := sqlite_conn.Exec(createTableSqlStmt)
+	if create_table_err != nil {
+		panic(create_table_err)
+	}
+}
+
+/**
+ * Load stats data from db
+ */
+func loadStatsData() {
+	stmt, err := sqlite_conn.Prepare("select value from stats where metric = 'client_num'")
+	if err != nil {
+		panic(err)
+	}
+	defer stmt.Close()
+
+	query_err := stmt.QueryRow().Scan(&client_num)
+	if query_err != nil {
+		panic(query_err)
+	}
+}
+
+/**
+ * Stats data persistent
+ */
+func statsPersistent() {
+	stmt, err := sqlite_conn.Prepare("UPDATE stats SET value = ? WHERE metric = 'client_num'")
+	if err != nil {
+		panic(err)
+	}
+	defer stmt.Close()
+
+	frequency, frequency_err := c.String("stats-persistent", "frequency")
+	if frequency_err != nil {
+		panic(frequency_err)
+	}
+	if frequency == "" {
+		frequency = "1"
+	}
+	frequency_num, err_frequency_num := strconv.Atoi(frequency)
+	if err_frequency_num != nil {
+		panic(err_frequency_num)
+	}
+
+	for {
+		_, exec_err := stmt.Exec(client_num)
+		if exec_err != nil {
+			panic(exec_err)
+		}
+
+		t := time.NewTimer(time.Second * time.Duration(frequency_num))
+		<-t.C
+	}
 }

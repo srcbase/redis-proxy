@@ -43,7 +43,7 @@ func main() {
 	connectSqlite()
 	defer sqlite_conn.Close()
 	LoadStatsData(sqlite_conn, &client_num)
-	go StatsPersistent(sqlite_conn, &client_num)
+	go StatsPersistent(sqlite_conn, &client_num, c)
 
 	Monitor_signal = make(chan bool)
 

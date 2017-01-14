@@ -34,6 +34,8 @@ var ip_white_list_lock sync.Mutex
 
 var sqlite_conn *sql.DB
 
+var command_filter_lock sync.Mutex
+
 func main() {
 	c, err_c = config.ReadDefault("./config/sample.config.cfg")
 	CheckErr(err_c)

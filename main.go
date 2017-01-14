@@ -34,11 +34,15 @@ var ip_white_list_lock sync.Mutex
 
 var sqlite_conn *sql.DB
 
+var banned_commands []string
+var command_filter_lock sync.Mutex
+
 func main() {
 	c, err_c = config.ReadDefault("./config/sample.config.cfg")
 	CheckErr(err_c)
 
 	parseIpWhiteList()
+	parseBannedCommands()
 
 	connectSqlite()
 	defer sqlite_conn.Close()
@@ -180,10 +184,11 @@ func handler(conn net.Conn) {
 }
 
 /**
- * Filter dangerous commands
+ * Parse banned commands
  */
-func commandFilter(command string) bool {
-	banned_commands := []string{"flushall", "flushdb", "keys", "auth"}
+func parseBannedCommands() {
+	command_filter_lock.Lock()
+	banned_commands = []string{"flushall", "flushdb", "keys", "auth"}
 	additional_banned_commands, additional_banned_commands_err := c.String("security-review", "banned-commands")
 	CheckErr(additional_banned_commands_err)
 	if additional_banned_commands != "" {
@@ -192,14 +197,23 @@ func commandFilter(command string) bool {
 			banned_commands = append(banned_commands, additional_banned_command)
 		}
 	}
+	command_filter_lock.Unlock()
+}
 
+/**
+ * Filter dangerous commands
+ */
+func commandFilter(command string) bool {
+	command_filter_lock.Lock()
 	command = strings.ToLower(command)
 	for _, banned_command := range banned_commands {
 		if strings.Contains(command, banned_command) {
+			command_filter_lock.Unlock()
 			return false
 		}
 	}
 
+	command_filter_lock.Unlock()
 	return true
 }
 
@@ -265,6 +279,9 @@ func watchFile(filename string) {
 
 					// Reset ip white list
 					parseIpWhiteList()
+
+					// Parse Banned Commands
+					parseBannedCommands()
 
 					watcher.Watch(filename)
 				}

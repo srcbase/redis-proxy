@@ -178,6 +178,7 @@ func handler(conn net.Conn) {
 		}
 
 		if n > 0 && commandFilter(command) {
+			fmt.Println("Hash value of command is ", Mhash(command))
 			go exec(buf[0:n], conn)
 		} else {
 			conn.Write([]byte("+OK\r\n"))

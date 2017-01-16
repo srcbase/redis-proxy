@@ -2,6 +2,7 @@
 [![Build Status](https://travis-ci.org/luoxiaojun1992/redis-proxy.svg?branch=master)](https://travis-ci.org/luoxiaojun1992/redis-proxy)
 
 ## Features
-TBD
++ Redis Connection Pool (Up to 200)
++ Integration with telegraf
 ## Configuration
 TBD

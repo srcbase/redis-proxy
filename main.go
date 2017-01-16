@@ -94,8 +94,10 @@ func connectRedis() {
 		redis_conn, err := net.Dial("tcp", redis_host+":"+redis_port)
 		CheckErr(err)
 
-		_, err2 := redis_conn.Write([]byte("AUTH " + redis_password + "\r\nSELECT 0\r\n"))
-		CheckErr(err2)
+		if redis_password != "" {
+			_, err2 := redis_conn.Write([]byte("AUTH " + redis_password + "\r\nSELECT 0\r\n"))
+			CheckErr(err2)
+		}
 
 		buf := make([]byte, 4096)
 		redis_conn.Read(buf)

@@ -8,4 +8,26 @@
 + Client IP Limit
 
 ## Configuration
-TBD
+```
+[redis-server]
+host: 127.0.0.1 
+port: 6379
+password: (Optional)
+
+[tcp-server]
+port: 63799
+
+[access-control]
+ip-white-list: (Optional)
+
+; Telegraf Monitor Tcp Listener
+[telegraf-monitor]
+host: 127.0.0.1 (Optional)
+port: 8094 (Optional)
+
+[security-review]
+banned-commands: (Optional)
+
+[stats-persistent]
+frequency: 1
+```

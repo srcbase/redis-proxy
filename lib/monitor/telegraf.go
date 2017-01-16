@@ -38,6 +38,14 @@ func Monitor(client_num *uint64, c *config.Config) {
 	}
 	defer telegraf_conn.Close()
 
+	// Clear Monitor Signal
+	select {
+	case <-Monitor_signal:
+		//
+	default:
+		//
+	}
+
 	fmt.Println("Monitor started.")
 
 	for {

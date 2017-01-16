@@ -26,7 +26,7 @@ host: 127.0.0.1 (Optional)
 port: 8094 (Optional)
 
 [security-review]
-banned-commands: (Optional, separated by commas)
+banned-commands: (Optional, separated by commas. Default: flushall,flushdb,keys,auth)
 
 [stats-persistent]
 frequency: 1

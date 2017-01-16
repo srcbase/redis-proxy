@@ -7,10 +7,13 @@
 + Command Filter
 + Client IP Limit
 
+## Installation
++ Execute "go install ." in root directory
+
 ## Configuration
 ```
 [redis-server]
-host: 127.0.0.1 
+host: 127.0.0.1
 port: 6379
 password: (Optional)
 

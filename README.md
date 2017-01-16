@@ -8,7 +8,7 @@
 + Client IP Limit
 
 ## Installation
-+ Execute "go install ." in root directory
++ Execute install.sh in root/script directory
 
 ## Configuration
 ```

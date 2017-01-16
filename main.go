@@ -41,9 +41,6 @@ func main() {
 	c, err_c = config.ReadDefault("./config/sample.config.cfg")
 	CheckErr(err_c)
 
-	parseIpWhiteList()
-	parseBannedCommands()
-
 	connectSqlite()
 	defer sqlite_conn.Close()
 	LoadStatsData(sqlite_conn, &client_num)
@@ -116,6 +113,9 @@ func connectRedis() {
  */
 func startServer() {
 	fmt.Println("Starting redis proxy...")
+
+	parseIpWhiteList()
+	parseBannedCommands()
 
 	tcp_server_port, err_tcp_server_port := c.String("tcp-server", "port")
 	CheckErr(err_tcp_server_port)

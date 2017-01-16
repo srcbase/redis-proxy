@@ -34,3 +34,9 @@ banned-commands: (Optional, separated by commas. Default: flushall,flushdb,keys,
 [stats-persistent]
 frequency: 1
 ```
+
+## Usage
+```
+redis-cli -p 63799
+```
+

@@ -4,6 +4,8 @@
 ## Features
 + Redis Connection Pool (Up to 200)
 + Integration with telegraf
++ Command Filter
++ Client IP Limit
 
 ## Configuration
 TBD

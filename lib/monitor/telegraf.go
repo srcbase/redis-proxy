@@ -15,15 +15,14 @@ var Monitor_lock sync.Mutex
 /**
  * Get telegraf tcp connection
  */
-func GetTelegrafConn(c *config.Config) net.Conn {
+func getTelegrafConn(c *config.Config) (net.Conn, error) {
 	telegraf_monitor_host, telegraf_monitor_host_err := c.String("telegraf-monitor", "host")
 	CheckErr(telegraf_monitor_host_err)
 	telegraf_monitor_port, telegraf_monitor_port_err := c.String("telegraf-monitor", "port")
 	CheckErr(telegraf_monitor_port_err)
 	telegraf_conn, err := net.Dial("tcp", telegraf_monitor_host+":"+telegraf_monitor_port)
-	CheckErr(err)
 
-	return telegraf_conn
+	return telegraf_conn, err
 }
 
 /**
@@ -33,8 +32,19 @@ func Monitor(client_num *uint64, c *config.Config) {
 	Monitor_lock.Lock()
 	defer Monitor_lock.Unlock()
 
-	telegraf_conn := GetTelegrafConn(c)
+	telegraf_conn, err_telegraf_conn := getTelegrafConn(c)
+	if err_telegraf_conn != nil {
+		return
+	}
 	defer telegraf_conn.Close()
+
+	// Clear Monitor Signal
+	select {
+	case <-Monitor_signal:
+		//
+	default:
+		//
+	}
 
 	fmt.Println("Monitor started.")
 
@@ -51,7 +61,10 @@ func Monitor(client_num *uint64, c *config.Config) {
 
 		_, err := telegraf_conn.Write([]byte("redis_proxy client_count=" + fmt.Sprintf("%d", client_num) + "\n"))
 		if err != nil {
-			telegraf_conn = GetTelegrafConn(c)
+			telegraf_conn, err_telegraf_conn = getTelegrafConn(c)
+			if err_telegraf_conn != nil {
+				return
+			}
 		}
 
 		t := time.NewTimer(time.Second * time.Duration(1))

@@ -4,5 +4,6 @@
 ## Features
 + Redis Connection Pool (Up to 200)
 + Integration with telegraf
+
 ## Configuration
 TBD

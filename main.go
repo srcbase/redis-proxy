@@ -19,6 +19,7 @@ type RedisConn struct {
 }
 
 var redis_conns []*RedisConn
+var sharded_redis_conns map[int64][]*RedisConn
 
 var start_index int
 var start_index_lock sync.Mutex
@@ -52,6 +53,7 @@ func main() {
 
 	go Monitor(&client_num, c)
 
+	sharded_redis_conns = make(map[int64][]*RedisConn)
 	connectRedis()
 
 	for _, redis_conn := range redis_conns {
@@ -106,6 +108,9 @@ func connectRedis() {
 
 		redis_conns = append(redis_conns, redisConn)
 	}
+
+	host_hash_key := Mhash(redis_host)
+	sharded_redis_conns[host_hash_key] = redis_conns
 }
 
 /**

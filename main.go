@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	. "github.com/cznic/sortutil"
 	"github.com/howeyc/fsnotify"
 	. "github.com/luoxiaojun1992/redis-proxy/lib/helper"
 	. "github.com/luoxiaojun1992/redis-proxy/lib/monitor"
@@ -19,6 +20,8 @@ type RedisConn struct {
 }
 
 var redis_conns []*RedisConn
+var sharded_redis_conns map[int64][]*RedisConn
+var sharded_redis_conns_order_arr Int64Slice
 
 var start_index int
 var start_index_lock sync.Mutex
@@ -54,8 +57,10 @@ func main() {
 
 	connectRedis()
 
-	for _, redis_conn := range redis_conns {
-		defer redis_conn.Conn.Close()
+	for _, sharded_redis_conn := range sharded_redis_conns {
+		for _, redis_conn := range sharded_redis_conn {
+			defer redis_conn.Conn.Close()
+		}
 	}
 
 	startServer()
@@ -78,8 +83,9 @@ func parseIpWhiteList() {
  * Set redis connection pool
  */
 func connectRedis() {
-	redis_host, err_redis_host := c.String("redis-server", "host")
+	redis_hosts, err_redis_host := c.String("redis-server", "host")
 	CheckErr(err_redis_host)
+	redis_hosts_arr := strings.Split(redis_hosts, ",")
 
 	redis_port, err_redis_port := c.String("redis-server", "port")
 	CheckErr(err_redis_port)
@@ -87,25 +93,35 @@ func connectRedis() {
 	redis_password, err_redis_password := c.String("redis-server", "password")
 	CheckErr(err_redis_password)
 
-	for i := 0; i < REDIS_CONNS_TOTAL; i++ {
-		redis_conn, err := net.Dial("tcp", redis_host+":"+redis_port)
-		CheckErr(err)
+	sharded_redis_conns = make(map[int64][]*RedisConn)
 
-		if redis_password != "" {
-			_, err2 := redis_conn.Write([]byte("AUTH " + redis_password + "\r\nSELECT 0\r\n"))
-			CheckErr(err2)
+	for _, redis_host := range redis_hosts_arr {
+		for i := 0; i < REDIS_CONNS_TOTAL; i++ {
+			redis_conn, err := net.Dial("tcp", redis_host+":"+redis_port)
+			CheckErr(err)
 
-			buf := make([]byte, 4096)
-			redis_conn.Read(buf)
+			if redis_password != "" {
+				_, err2 := redis_conn.Write([]byte("AUTH " + redis_password + "\r\nSELECT 0\r\n"))
+				CheckErr(err2)
+
+				buf := make([]byte, 4096)
+				redis_conn.Read(buf)
+			}
+
+			redisConn := new(RedisConn)
+			redisConnLock := new(sync.Mutex)
+			redisConn.Conn = redis_conn
+			redisConn.Lock = redisConnLock
+
+			redis_conns = append(redis_conns, redisConn)
 		}
 
-		redisConn := new(RedisConn)
-		redisConnLock := new(sync.Mutex)
-		redisConn.Conn = redis_conn
-		redisConn.Lock = redisConnLock
-
-		redis_conns = append(redis_conns, redisConn)
+		host_hash_key := Mhash(redis_host)
+		sharded_redis_conns_order_arr = append(sharded_redis_conns_order_arr, host_hash_key)
+		sharded_redis_conns[host_hash_key] = redis_conns
 	}
+
+	sharded_redis_conns_order_arr.Sort()
 }
 
 /**
@@ -178,6 +194,7 @@ func handler(conn net.Conn) {
 		}
 
 		if n > 0 && commandFilter(command) {
+			fmt.Println("Hash value of command is ", Mhash(command))
 			go exec(buf[0:n], conn)
 		} else {
 			conn.Write([]byte("+OK\r\n"))
@@ -222,7 +239,7 @@ func commandFilter(command string) bool {
 /**
  * Get one redis connection
  */
-func getRedisConn() *RedisConn {
+func getRedisConn(command string) *RedisConn {
 	start_index_lock.Lock()
 	if start_index >= REDIS_CONNS_TOTAL-1 {
 		start_index = 0
@@ -231,15 +248,30 @@ func getRedisConn() *RedisConn {
 	}
 	start_index_lock.Unlock()
 
-	fmt.Println("Using redis connection ", start_index)
-	return redis_conns[start_index]
+	command_key := ParseCommandKey(command)
+	conn_index := 0
+	if command_key != "" {
+		key_hash := Mhash(command_key)
+		for index, val := range sharded_redis_conns_order_arr {
+			if key_hash >= val {
+				conn_index = index
+				break
+			}
+		}
+	}
+
+	shard_hash := sharded_redis_conns_order_arr[conn_index]
+
+	fmt.Println("Using redis connection ", start_index, " ,using shard ", shard_hash)
+
+	return sharded_redis_conns[shard_hash][start_index]
 }
 
 /**
  * Exec redis command
  */
 func exec(command []byte, conn net.Conn) {
-	redis_conn := getRedisConn()
+	redis_conn := getRedisConn(string(command))
 
 	redis_conn.Lock.Lock()
 

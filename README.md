@@ -6,6 +6,7 @@
 + Integration with telegraf
 + Command Filter
 + Client IP Limit
++ Data Sharding
 
 ## Installation
 + Execute install.sh in root/script directory
@@ -13,7 +14,7 @@
 ## Configuration
 ```
 [redis-server]
-host: 127.0.0.1
+host: 127.0.0.1(Separated by commas)
 port: 6379
 password: (Optional)
 

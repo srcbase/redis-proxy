@@ -82,8 +82,9 @@ func parseIpWhiteList() {
  * Set redis connection pool
  */
 func connectRedis() {
-	redis_host, err_redis_host := c.String("redis-server", "host")
+	redis_hosts, err_redis_host := c.String("redis-server", "host")
 	CheckErr(err_redis_host)
+	redis_hosts_arr := strings.Split(redis_hosts, ",")
 
 	redis_port, err_redis_port := c.String("redis-server", "port")
 	CheckErr(err_redis_port)
@@ -91,28 +92,30 @@ func connectRedis() {
 	redis_password, err_redis_password := c.String("redis-server", "password")
 	CheckErr(err_redis_password)
 
-	for i := 0; i < REDIS_CONNS_TOTAL; i++ {
-		redis_conn, err := net.Dial("tcp", redis_host+":"+redis_port)
-		CheckErr(err)
+	for _, redis_host := range redis_hosts_arr {
+		for i := 0; i < REDIS_CONNS_TOTAL; i++ {
+			redis_conn, err := net.Dial("tcp", redis_host+":"+redis_port)
+			CheckErr(err)
 
-		if redis_password != "" {
-			_, err2 := redis_conn.Write([]byte("AUTH " + redis_password + "\r\nSELECT 0\r\n"))
-			CheckErr(err2)
+			if redis_password != "" {
+				_, err2 := redis_conn.Write([]byte("AUTH " + redis_password + "\r\nSELECT 0\r\n"))
+				CheckErr(err2)
 
-			buf := make([]byte, 4096)
-			redis_conn.Read(buf)
+				buf := make([]byte, 4096)
+				redis_conn.Read(buf)
+			}
+
+			redisConn := new(RedisConn)
+			redisConnLock := new(sync.Mutex)
+			redisConn.Conn = redis_conn
+			redisConn.Lock = redisConnLock
+
+			redis_conns = append(redis_conns, redisConn)
 		}
 
-		redisConn := new(RedisConn)
-		redisConnLock := new(sync.Mutex)
-		redisConn.Conn = redis_conn
-		redisConn.Lock = redisConnLock
-
-		redis_conns = append(redis_conns, redisConn)
+		host_hash_key := Mhash(redis_host)
+		sharded_redis_conns[host_hash_key] = redis_conns
 	}
-
-	host_hash_key := Mhash(redis_host)
-	sharded_redis_conns[host_hash_key] = redis_conns
 }
 
 /**

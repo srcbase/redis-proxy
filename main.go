@@ -53,7 +53,6 @@ func main() {
 
 	go Monitor(&client_num, c)
 
-	sharded_redis_conns = make(map[int64][]*RedisConn)
 	connectRedis()
 
 	for _, sharded_redis_conn := range sharded_redis_conns {
@@ -91,6 +90,8 @@ func connectRedis() {
 
 	redis_password, err_redis_password := c.String("redis-server", "password")
 	CheckErr(err_redis_password)
+
+	sharded_redis_conns = make(map[int64][]*RedisConn)
 
 	for _, redis_host := range redis_hosts_arr {
 		for i := 0; i < REDIS_CONNS_TOTAL; i++ {

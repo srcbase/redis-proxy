@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	. "github.com/cznic/sortutil"
 	"github.com/howeyc/fsnotify"
 	. "github.com/luoxiaojun1992/redis-proxy/lib/helper"
 	. "github.com/luoxiaojun1992/redis-proxy/lib/monitor"
@@ -20,6 +21,7 @@ type RedisConn struct {
 
 var redis_conns []*RedisConn
 var sharded_redis_conns map[int64][]*RedisConn
+var sharded_redis_conns_order_arr Int64Slice
 
 var start_index int
 var start_index_lock sync.Mutex
@@ -115,8 +117,11 @@ func connectRedis() {
 		}
 
 		host_hash_key := Mhash(redis_host)
+		sharded_redis_conns_order_arr = append(sharded_redis_conns_order_arr, host_hash_key)
 		sharded_redis_conns[host_hash_key] = redis_conns
 	}
+
+	sharded_redis_conns_order_arr.Sort()
 }
 
 /**
@@ -234,7 +239,7 @@ func commandFilter(command string) bool {
 /**
  * Get one redis connection
  */
-func getRedisConn() *RedisConn {
+func getRedisConn(command string) *RedisConn {
 	start_index_lock.Lock()
 	if start_index >= REDIS_CONNS_TOTAL-1 {
 		start_index = 0
@@ -243,15 +248,30 @@ func getRedisConn() *RedisConn {
 	}
 	start_index_lock.Unlock()
 
-	fmt.Println("Using redis connection ", start_index)
-	return redis_conns[start_index]
+	command_key := ParseCommandKey(command)
+	conn_index := 0
+	if command_key != "" {
+		key_hash := Mhash(command_key)
+		for index, val := range sharded_redis_conns_order_arr {
+			if key_hash >= val {
+				conn_index = index
+				break
+			}
+		}
+	}
+
+	shard_hash := sharded_redis_conns_order_arr[conn_index]
+
+	fmt.Println("Using redis connection ", start_index, " ,using shard ", shard_hash)
+
+	return sharded_redis_conns[shard_hash][start_index]
 }
 
 /**
  * Exec redis command
  */
 func exec(command []byte, conn net.Conn) {
-	redis_conn := getRedisConn()
+	redis_conn := getRedisConn(string(command))
 
 	redis_conn.Lock.Lock()
 

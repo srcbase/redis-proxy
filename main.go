@@ -56,8 +56,10 @@ func main() {
 	sharded_redis_conns = make(map[int64][]*RedisConn)
 	connectRedis()
 
-	for _, redis_conn := range redis_conns {
-		defer redis_conn.Conn.Close()
+	for _, sharded_redis_conn := range sharded_redis_conns {
+		for _, redis_conn := range sharded_redis_conn {
+			defer redis_conn.Conn.Close()
+		}
 	}
 
 	startServer()

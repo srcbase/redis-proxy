@@ -251,7 +251,7 @@ func getRedisConn(command string) *RedisConn {
 	command_key := ParseCommandKey(command)
 	conn_index := 0
 	if command_key != "" {
-		key_hash := Mhash(command_key)
+		key_hash := Mhash(strings.ToLower(command_key))
 		for index, val := range sharded_redis_conns_order_arr {
 			if key_hash >= val {
 				conn_index = index

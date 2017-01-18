@@ -22,7 +22,10 @@ type RedisConn struct {
 var redis_conns []*RedisConn
 var sharded_redis_conns map[int64][]*RedisConn
 var sharded_redis_conns_order_arr Int64Slice
-
+var redis_hosts string
+var redis_port string
+var redis_password string
+var redis_hosts_arr []string
 var start_index int
 var start_index_lock sync.Mutex
 
@@ -30,10 +33,9 @@ var c *config.Config
 var err_c error
 
 var ip_white_list_arr []string
+var ip_white_list_lock sync.Mutex
 
 var client_num uint64
-
-var ip_white_list_lock sync.Mutex
 
 var sqlite_conn *sql.DB
 
@@ -80,18 +82,28 @@ func parseIpWhiteList() {
 }
 
 /**
+ * Parse redis configuration
+ */
+func parseRedisConfig() {
+	var err_redis_host error
+	redis_hosts, err_redis_host = c.String("redis-server", "host")
+	CheckErr(err_redis_host)
+	redis_hosts_arr = strings.Split(redis_hosts, ",")
+
+	var err_redis_port error
+	redis_port, err_redis_port = c.String("redis-server", "port")
+	CheckErr(err_redis_port)
+
+	var err_redis_password error
+	redis_password, err_redis_password = c.String("redis-server", "password")
+	CheckErr(err_redis_password)
+}
+
+/**
  * Set redis connection pool
  */
 func connectRedis() {
-	redis_hosts, err_redis_host := c.String("redis-server", "host")
-	CheckErr(err_redis_host)
-	redis_hosts_arr := strings.Split(redis_hosts, ",")
-
-	redis_port, err_redis_port := c.String("redis-server", "port")
-	CheckErr(err_redis_port)
-
-	redis_password, err_redis_password := c.String("redis-server", "password")
-	CheckErr(err_redis_password)
+	parseRedisConfig()
 
 	sharded_redis_conns = make(map[int64][]*RedisConn)
 
@@ -185,15 +197,6 @@ func handler(conn net.Conn) {
 
 	// transaction support
 	is_transaction := false
-	redis_hosts, err_redis_host := c.String("redis-server", "host")
-	CheckErr(err_redis_host)
-	redis_hosts_arr := strings.Split(redis_hosts, ",")
-
-	redis_port, err_redis_port := c.String("redis-server", "port")
-	CheckErr(err_redis_port)
-
-	redis_password, err_redis_password := c.String("redis-server", "password")
-	CheckErr(err_redis_password)
 
 	tx_conn, err_tx_conn := net.Dial("tcp", redis_hosts_arr[0]+":"+redis_port)
 	CheckErr(err_tx_conn)

@@ -183,19 +183,56 @@ func handler(conn net.Conn) {
 
 	defer conn.Close()
 
+	// transaction support
+	is_transaction := false
+	redis_hosts, err_redis_host := c.String("redis-server", "host")
+	CheckErr(err_redis_host)
+	redis_hosts_arr := strings.Split(redis_hosts, ",")
+
+	redis_port, err_redis_port := c.String("redis-server", "port")
+	CheckErr(err_redis_port)
+
+	redis_password, err_redis_password := c.String("redis-server", "password")
+	CheckErr(err_redis_password)
+
+	tx_conn, err_tx_conn := net.Dial("tcp", redis_hosts_arr[0]+":"+redis_port)
+	CheckErr(err_tx_conn)
+	defer tx_conn.Close()
+
+	if redis_password != "" {
+		_, err_redis_pwd := tx_conn.Write([]byte("AUTH " + redis_password + "\r\nSELECT 0\r\n"))
+		CheckErr(err_redis_pwd)
+
+		buf := make([]byte, 4096)
+		tx_conn.Read(buf)
+	}
+
+	txConn := new(RedisConn)
+	txConnLock := new(sync.Mutex)
+	txConn.Conn = tx_conn
+	txConn.Lock = txConnLock
+
 	buf := make([]byte, 4096)
 	for {
 		n, err := conn.Read(buf[0:])
 
-		command := string(buf[0:n])
+		command := strings.ToLower(string(buf[0:n]))
 
-		if err != nil || strings.Contains(command, "COMMAND") {
+		if err != nil || strings.Contains(command, "command") {
 			break
 		}
 
 		if n > 0 && commandFilter(command) {
+			if strings.Contains(command, "multi") {
+				is_transaction = true
+			}
+
 			fmt.Println("Hash value of command is ", Mhash(command))
-			go exec(buf[0:n], conn)
+			go exec(buf[0:n], conn, is_transaction, txConn)
+
+			if strings.Contains(command, "exec") || strings.Contains(command, "discard") {
+				is_transaction = false
+			}
 		} else {
 			conn.Write([]byte("+OK\r\n"))
 		}
@@ -270,8 +307,10 @@ func getRedisConn(command string) *RedisConn {
 /**
  * Exec redis command
  */
-func exec(command []byte, conn net.Conn) {
-	redis_conn := getRedisConn(string(command))
+func exec(command []byte, conn net.Conn, is_transaction bool, redis_conn *RedisConn) {
+	if !is_transaction {
+		redis_conn = getRedisConn(string(command))
+	}
 
 	redis_conn.Lock.Lock()
 

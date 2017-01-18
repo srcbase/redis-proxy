@@ -6,7 +6,8 @@
 + Integration with telegraf
 + Command Filter
 + Client IP Limit
-+ Data Sharding
++ Data Sharding(No transaction support)
++ Transaction Support(Only support for first node)
 
 ## Installation
 + Execute install.sh in root/script directory

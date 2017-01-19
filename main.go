@@ -129,8 +129,18 @@ func connectRedis() {
 		}
 
 		host_hash_key := Mhash(redis_host)
+		virtual_port_hash_key := Mhash(ReverseString(redis_host + redis_port))
+		virtual_password_hash_key := Mhash(ReverseString(redis_host + redis_password))
+		virtual_port_password_hash_key := Mhash(redis_host + redis_port + redis_password)
 		sharded_redis_conns_order_arr = append(sharded_redis_conns_order_arr, host_hash_key)
+		sharded_redis_conns_order_arr = append(sharded_redis_conns_order_arr, virtual_port_hash_key)
+		sharded_redis_conns_order_arr = append(sharded_redis_conns_order_arr, virtual_password_hash_key)
+		sharded_redis_conns_order_arr = append(sharded_redis_conns_order_arr, virtual_port_password_hash_key)
+
 		sharded_redis_conns[host_hash_key] = redis_conns
+		sharded_redis_conns[virtual_port_hash_key] = redis_conns
+		sharded_redis_conns[virtual_password_hash_key] = redis_conns
+		sharded_redis_conns[virtual_port_password_hash_key] = redis_conns
 	}
 
 	sharded_redis_conns_order_arr.Sort()
@@ -230,7 +240,6 @@ func handler(conn net.Conn) {
 				is_transaction = true
 			}
 
-			fmt.Println("Hash value of command is ", Mhash(command))
 			go exec(buf[0:n], conn, is_transaction, txConn)
 
 			if strings.Contains(command, "exec") || strings.Contains(command, "discard") {
@@ -288,12 +297,13 @@ func getRedisConn(command string) *RedisConn {
 	}
 	start_index_lock.Unlock()
 
-	command_key := ParseCommandKey(command)
+	command_key := ParseCommandKey2(command)
 	conn_index := 0
 	if command_key != "" {
 		key_hash := Mhash(strings.ToLower(command_key))
+		fmt.Println("key hash ", key_hash)
 		for index, val := range sharded_redis_conns_order_arr {
-			if key_hash >= val {
+			if key_hash <= val {
 				conn_index = index
 				break
 			}
@@ -302,7 +312,7 @@ func getRedisConn(command string) *RedisConn {
 
 	shard_hash := sharded_redis_conns_order_arr[conn_index]
 
-	fmt.Println("Using redis connection ", start_index, " ,using shard ", shard_hash)
+	fmt.Println("Using redis connection ", start_index, " ,using shard ", shard_hash, " ,all sharding ", sharded_redis_conns_order_arr)
 
 	return sharded_redis_conns[shard_hash][start_index]
 }

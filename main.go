@@ -240,7 +240,6 @@ func handler(conn net.Conn) {
 				is_transaction = true
 			}
 
-			fmt.Println("Hash value of command is ", Mhash(command))
 			go exec(buf[0:n], conn, is_transaction, txConn)
 
 			if strings.Contains(command, "exec") || strings.Contains(command, "discard") {
@@ -299,6 +298,7 @@ func getRedisConn(command string) *RedisConn {
 	start_index_lock.Unlock()
 
 	command_key := ParseCommandKey(command)
+	fmt.Println("key ", command)
 	conn_index := 0
 	if command_key != "" {
 		key_hash := Mhash(strings.ToLower(command_key))

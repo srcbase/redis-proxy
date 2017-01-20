@@ -352,6 +352,8 @@ func exec(command []byte, conn net.Conn, is_transaction bool, redis_conn *RedisC
 			if n < 131072 {
 				break
 			}
+		} else {
+			break
 		}
 	}
 

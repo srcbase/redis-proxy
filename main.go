@@ -225,14 +225,22 @@ func handler(conn net.Conn) {
 	txConn.Conn = tx_conn
 	txConn.Lock = txConnLock
 
-	buf := make([]byte, 4096)
+	buf := make([]byte, 65535)
+	command := ""
 	for {
 		n, err := conn.Read(buf[0:])
-
-		command := strings.ToLower(string(buf[0:n]))
-
-		if err != nil || strings.Contains(command, "command") {
+		if err != nil {
 			break
+		}
+
+		if n > 0 {
+			command += strings.ToLower(string(buf[0:n]))
+			if strings.Contains(command, "command") {
+				break
+			}
+			if n == 4096 {
+				continue
+			}
 		}
 
 		if n > 0 && commandFilter(command) {
@@ -240,7 +248,7 @@ func handler(conn net.Conn) {
 				is_transaction = true
 			}
 
-			go exec(buf[0:n], conn, is_transaction, txConn)
+			go exec([]byte(command), conn, is_transaction, txConn)
 
 			if strings.Contains(command, "exec") || strings.Contains(command, "discard") {
 				is_transaction = false
@@ -248,6 +256,8 @@ func handler(conn net.Conn) {
 		} else {
 			conn.Write([]byte("+OK\r\n"))
 		}
+
+		command = ""
 	}
 }
 
@@ -336,7 +346,7 @@ func exec(command []byte, conn net.Conn, is_transaction bool, redis_conn *RedisC
 		n, err2 := redis_conn.Conn.Read(buf[0:])
 		CheckErr(err2)
 		resp += string(buf[0:n])
-		if n <= 65535 {
+		if n < 65535 {
 			break
 		}
 	}

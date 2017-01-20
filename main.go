@@ -9,6 +9,7 @@ import (
 	. "github.com/luoxiaojun1992/redis-proxy/lib/monitor"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/robfig/config"
+	"io"
 	"net"
 	"strings"
 	"sync"
@@ -229,7 +230,7 @@ func handler(conn net.Conn) {
 	command := ""
 	for {
 		n, err := conn.Read(buf[0:])
-		if err != nil {
+		if err != nil && err != io.EOF {
 			break
 		}
 
@@ -345,7 +346,9 @@ func exec(command []byte, conn net.Conn, is_transaction bool, redis_conn *RedisC
 	resp := ""
 	for {
 		n, err2 := redis_conn.Conn.Read(buf[0:])
-		CheckErr(err2)
+		if err2 != io.EOF {
+			CheckErr(err2)
+		}
 		if n > 0 {
 			resp += string(buf[0:n])
 			if n < 131072 {

@@ -347,9 +347,11 @@ func exec(command []byte, conn net.Conn, is_transaction bool, redis_conn *RedisC
 	for {
 		n, err2 := redis_conn.Conn.Read(buf[0:])
 		CheckErr(err2)
-		resp += string(buf[0:n])
-		if n < 131072 && n > 0 {
-			break
+		if n > 0 {
+			resp += string(buf[0:n])
+			if n < 131072 {
+				break
+			}
 		}
 	}
 

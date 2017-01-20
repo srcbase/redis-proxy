@@ -257,9 +257,8 @@ func handler(conn net.Conn) {
 			} else {
 				conn.Write([]byte("+OK\r\n"))
 			}
+			command = ""
 		}
-
-		command = ""
 	}
 }
 

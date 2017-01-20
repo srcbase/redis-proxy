@@ -243,18 +243,20 @@ func handler(conn net.Conn) {
 			}
 		}
 
-		if n > 0 && commandFilter(command) {
-			if strings.Contains(command, "multi") {
-				is_transaction = true
-			}
+		if command != "" {
+			if commandFilter(command) {
+				if strings.Contains(command, "multi") {
+					is_transaction = true
+				}
 
-			go exec([]byte(command), conn, is_transaction, txConn)
+				go exec([]byte(command), conn, is_transaction, txConn)
 
-			if strings.Contains(command, "exec") || strings.Contains(command, "discard") {
-				is_transaction = false
+				if strings.Contains(command, "exec") || strings.Contains(command, "discard") {
+					is_transaction = false
+				}
+			} else {
+				conn.Write([]byte("+OK\r\n"))
 			}
-		} else {
-			conn.Write([]byte("+OK\r\n"))
 		}
 
 		command = ""

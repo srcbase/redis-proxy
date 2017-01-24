@@ -351,12 +351,11 @@ func exec(command []byte, conn net.Conn, is_transaction bool, redis_conn *RedisC
 		}
 		if n > 0 {
 			resp += string(buf[0:n])
-			if n < 131072 {
-				break
+			if n == 131072 {
+				continue
 			}
-		} else {
-			break
 		}
+		break
 	}
 
 	if resp != "" {

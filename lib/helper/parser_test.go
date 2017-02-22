@@ -21,3 +21,9 @@ func TestParseCommandKey(t *testing.T) {
 		t.Errorf("Unexpected result")
 	}
 }
+
+func TestParseCommandKey2(t *testing.T) {
+	if ParseCommandKey2("*2\r\n$3\r\nget\r\n$3\r\nfoo\r\n") != "foo" {
+		t.Errorf("Unexpected result")
+	}
+}

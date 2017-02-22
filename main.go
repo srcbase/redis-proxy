@@ -109,6 +109,8 @@ func connectRedis() {
 	sharded_redis_conns = make(map[int64][]*RedisConn)
 
 	for _, redis_host := range redis_hosts_arr {
+		redis_conns = []*RedisConn{}
+
 		for i := 0; i < REDIS_CONNS_TOTAL; i++ {
 			redis_conn, err := net.Dial("tcp", redis_host+":"+redis_port)
 			CheckErr(err)

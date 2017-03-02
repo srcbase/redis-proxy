@@ -27,8 +27,8 @@ var redis_hosts string
 var redis_port string
 var redis_password string
 var redis_hosts_arr []string
-var start_index int
-var start_index_lock sync.Mutex
+var start_index map[int64]int
+var start_index_lock map[int64]*sync.Mutex
 
 var c *config.Config
 var err_c error
@@ -144,6 +144,20 @@ func connectRedis() {
 		sharded_redis_conns[virtual_port_hash_key] = redis_conns
 		sharded_redis_conns[virtual_password_hash_key] = redis_conns
 		sharded_redis_conns[virtual_port_password_hash_key] = redis_conns
+
+		//init shard start index
+		start_index = make(map[int64]int)
+		start_index[host_hash_key] = 0
+		start_index[virtual_port_hash_key] = 0
+		start_index[virtual_password_hash_key] = 0
+		start_index[virtual_port_password_hash_key] = 0
+
+		//init shard start index lock
+		start_index_lock = make(map[int64]*sync.Mutex)
+		start_index_lock[host_hash_key] = new(sync.Mutex)
+		start_index_lock[virtual_port_hash_key] = new(sync.Mutex)
+		start_index_lock[virtual_password_hash_key] = new(sync.Mutex)
+		start_index_lock[virtual_port_password_hash_key] = new(sync.Mutex)
 	}
 
 	sharded_redis_conns_order_arr.Sort()
@@ -303,13 +317,6 @@ func commandFilter(command string) bool {
  * Get one redis connection
  */
 func getRedisConn(command string) *RedisConn {
-	start_index_lock.Lock()
-	if start_index >= REDIS_CONNS_TOTAL-1 {
-		start_index = 0
-	} else {
-		start_index++
-	}
-	start_index_lock.Unlock()
 
 	command_key := ParseCommandKey2(command)
 	conn_index := 0
@@ -326,9 +333,19 @@ func getRedisConn(command string) *RedisConn {
 
 	shard_hash := sharded_redis_conns_order_arr[conn_index]
 
-	fmt.Println("Using redis connection ", start_index, " ,using shard ", shard_hash, " ,all sharding ", sharded_redis_conns_order_arr)
+	start_index_lock[shard_hash].Lock()
 
-	return sharded_redis_conns[shard_hash][start_index]
+	if start_index[shard_hash] >= REDIS_CONNS_TOTAL-1 {
+		start_index[shard_hash] = 0
+	} else {
+		start_index[shard_hash]++
+	}
+
+	start_index_lock[shard_hash].Unlock()
+
+	fmt.Println("Using redis connection ", start_index[shard_hash], " ,using shard ", shard_hash, " ,all sharding ", sharded_redis_conns_order_arr)
+
+	return sharded_redis_conns[shard_hash][start_index[shard_hash]]
 }
 
 /**

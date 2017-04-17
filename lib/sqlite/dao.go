@@ -1,6 +1,6 @@
 package sqlite
 
-import(
+import (
 	. "github.com/luoxiaojun1992/redis-proxy/lib/helper"
 )
 

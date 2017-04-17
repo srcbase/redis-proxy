@@ -3,6 +3,7 @@ package monitor
 import (
 	"database/sql"
 	. "github.com/luoxiaojun1992/redis-proxy/lib/helper"
+	. "github.com/luoxiaojun1992/redis-proxy/lib/sqlite"
 	"github.com/robfig/config"
 	"strconv"
 	"time"
@@ -11,13 +12,8 @@ import (
 /**
  * Load stats data from db
  */
-func LoadStatsData(sqlite_conn *sql.DB, client_num *uint64) {
-	stmt, err := sqlite_conn.Prepare("select value from stats where metric = 'client_num'")
-	CheckErr(err)
-	defer stmt.Close()
-
-	query_err := stmt.QueryRow().Scan(client_num)
-	CheckErr(query_err)
+func LoadStatsData() uint64 {
+	return GetClientNum()
 }
 
 /**

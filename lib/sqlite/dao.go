@@ -15,3 +15,12 @@ func GetClientNum() uint64 {
 
 	return client_num
 }
+
+func UpdateClientNum(client_num *uint64) {
+	stmt, err := SqliteConn.Prepare("UPDATE stats SET value = ? WHERE metric = 'client_num'")
+	CheckErr(err)
+	defer stmt.Close()
+
+	_, exec_err := stmt.Exec(client_num)
+	CheckErr(exec_err)
+}

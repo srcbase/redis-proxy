@@ -20,10 +20,6 @@ func LoadStatsData() uint64 {
  * Stats data persistent
  */
 func StatsPersistent(sqlite_conn *sql.DB, client_num *uint64, c *config.Config) {
-	stmt, err := sqlite_conn.Prepare("UPDATE stats SET value = ? WHERE metric = 'client_num'")
-	CheckErr(err)
-	defer stmt.Close()
-
 	frequency, frequency_err := c.String("stats-persistent", "frequency")
 	CheckErr(frequency_err)
 	if frequency == "" {
@@ -33,8 +29,7 @@ func StatsPersistent(sqlite_conn *sql.DB, client_num *uint64, c *config.Config) 
 	CheckErr(err_frequency_num)
 
 	for {
-		_, exec_err := stmt.Exec(client_num)
-		CheckErr(exec_err)
+		UpdateClientNum(client_num)
 
 		t := time.NewTimer(time.Second * time.Duration(frequency_num))
 		<-t.C

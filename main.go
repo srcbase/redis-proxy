@@ -7,6 +7,7 @@ import (
 	"github.com/howeyc/fsnotify"
 	. "github.com/luoxiaojun1992/redis-proxy/lib/helper"
 	. "github.com/luoxiaojun1992/redis-proxy/lib/monitor"
+	. "github.com/luoxiaojun1992/redis-proxy/lib/sqlite"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/robfig/config"
 	"io"
@@ -47,9 +48,9 @@ func main() {
 	c, err_c = config.ReadDefault("./config/sample.config.cfg")
 	CheckErr(err_c)
 
-	connectSqlite()
+	sqlite_conn = ConnectSqlite()
 	defer sqlite_conn.Close()
-	LoadStatsData(sqlite_conn, &client_num)
+	client_num = LoadStatsData()
 	go StatsPersistent(sqlite_conn, &client_num, c)
 
 	Monitor_signal = make(chan bool)
@@ -416,17 +417,4 @@ func watchFile(filename string) {
 	}()
 
 	watcher.Watch(filename)
-}
-
-/**
- * Connect sqlite3
- */
-func connectSqlite() {
-	var sqlite_conn_err error
-	sqlite_conn, sqlite_conn_err = sql.Open("sqlite3", "./redis_proxy.db")
-	CheckErr(sqlite_conn_err)
-
-	createTableSqlStmt := `create table if not exists stats (id integer not null primary key, metric string not null default "", value integer not null default 0)`
-	_, create_table_err := sqlite_conn.Exec(createTableSqlStmt)
-	CheckErr(create_table_err)
 }

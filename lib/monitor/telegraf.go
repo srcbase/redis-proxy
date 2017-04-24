@@ -59,10 +59,8 @@ func Monitor(client_num *uint64, c *config.Config) {
 			//
 		}
 
-		_, err := telegraf_conn.Write([]byte("redis_proxy client_count=" + fmt.Sprintf("%d", client_num) + "\n"))
-		if err != nil {
-			telegraf_conn, err_telegraf_conn = getTelegrafConn(c)
-			if err_telegraf_conn != nil {
+		if _, err := telegraf_conn.Write([]byte("redis_proxy client_count=" + fmt.Sprintf("%d", client_num) + "\n")); err != nil {
+			if telegraf_conn, err_telegraf_conn = getTelegrafConn(c); err_telegraf_conn != nil {
 				return
 			}
 		}

@@ -56,7 +56,7 @@ func main() {
 
 	Monitor_signal = make(chan bool)
 
-	go watchFile("./config/sample.config.cfg")
+	go watchFile(CONFIG_URL)
 
 	go Monitor(&client_num, c)
 

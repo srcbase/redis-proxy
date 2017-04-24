@@ -16,6 +16,10 @@ import (
 	"sync"
 )
 
+const(
+	CONFIG_URL = "./config/sample.config.cfg"
+)
+
 type RedisConn struct {
 	Lock *sync.Mutex
 	Conn net.Conn
@@ -45,7 +49,7 @@ var banned_commands []string
 var command_filter_lock sync.Mutex
 
 func main() {
-	c, err_c = config.ReadDefault("./config/sample.config.cfg")
+	c, err_c = config.ReadDefault(CONFIG_URL)
 	CheckErr(err_c)
 
 	sqlite_conn = ConnectSqlite()

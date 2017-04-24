@@ -244,7 +244,7 @@ func handler(conn net.Conn) {
 	txConn.Conn = tx_conn
 	txConn.Lock = txConnLock
 
-	buf := make([]byte, 131072)
+	buf := make([]byte, TCP_BUF_SIZE)
 	command := ""
 	for {
 		n, err := conn.Read(buf[0:])
@@ -257,7 +257,7 @@ func handler(conn net.Conn) {
 			if strings.Contains(command, "command") {
 				break
 			}
-			if n == 131072 {
+			if n == TCP_BUF_SIZE {
 				continue
 			}
 		}
@@ -363,7 +363,7 @@ func exec(command []byte, conn net.Conn, is_transaction bool, redis_conn *RedisC
 	_, err := redis_conn.Conn.Write(command)
 	CheckErr(err)
 
-	buf := make([]byte, 131072)
+	buf := make([]byte, TCP_BUF_SIZE)
 	resp := ""
 	for {
 		n, err2 := redis_conn.Conn.Read(buf[0:])
@@ -372,7 +372,7 @@ func exec(command []byte, conn net.Conn, is_transaction bool, redis_conn *RedisC
 		}
 		if n > 0 {
 			resp += string(buf[0:n])
-			if n == 131072 {
+			if n == TCP_BUF_SIZE {
 				continue
 			}
 		}

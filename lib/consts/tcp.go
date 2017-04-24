@@ -1,5 +1,5 @@
 package consts
 
-const(
+const (
 	TCP_BUF_SIZE = 131072
 )

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	. "github.com/cznic/sortutil"
 	"github.com/howeyc/fsnotify"
+	. "github.com/luoxiaojun1992/redis-proxy/lib/consts"
 	. "github.com/luoxiaojun1992/redis-proxy/lib/helper"
 	. "github.com/luoxiaojun1992/redis-proxy/lib/monitor"
 	. "github.com/luoxiaojun1992/redis-proxy/lib/sqlite"
@@ -45,7 +46,7 @@ var banned_commands []string
 var command_filter_lock sync.Mutex
 
 func main() {
-	c, err_c = config.ReadDefault("./config/sample.config.cfg")
+	c, err_c = config.ReadDefault(CONFIG_URL)
 	CheckErr(err_c)
 
 	sqlite_conn = ConnectSqlite()
@@ -55,7 +56,7 @@ func main() {
 
 	Monitor_signal = make(chan bool)
 
-	go watchFile("./config/sample.config.cfg")
+	go watchFile(CONFIG_URL)
 
 	go Monitor(&client_num, c)
 

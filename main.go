@@ -5,6 +5,7 @@ import (
 	"fmt"
 	. "github.com/cznic/sortutil"
 	"github.com/howeyc/fsnotify"
+	. "github.com/luoxiaojun1992/redis-proxy/lib/consts"
 	. "github.com/luoxiaojun1992/redis-proxy/lib/helper"
 	. "github.com/luoxiaojun1992/redis-proxy/lib/monitor"
 	. "github.com/luoxiaojun1992/redis-proxy/lib/sqlite"
@@ -14,10 +15,6 @@ import (
 	"net"
 	"strings"
 	"sync"
-)
-
-const(
-	CONFIG_URL = "./config/sample.config.cfg"
 )
 
 type RedisConn struct {

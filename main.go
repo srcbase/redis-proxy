@@ -392,30 +392,36 @@ func exec(command []byte, conn net.Conn, is_transaction bool, redis_conn *RedisC
 func watchFile(filename string) {
 	watcher, _ := fsnotify.NewWatcher()
 
-	go func() {
-		for {
-			select {
-			case ev := <-watcher.Event:
-				if ev.IsModify() {
-					fmt.Println("Config file modified.")
-
-					// Restart telegraf monitor
-					Monitor_signal <- true
-					go Monitor(&client_num, c)
-
-					// Reset ip white list
-					parseIpWhiteList()
-
-					// Parse Banned Commands
-					parseBannedCommands()
-
-					watcher.Watch(filename)
-				}
-			case err := <-watcher.Error:
-				fmt.Println(err)
-			}
-		}
-	}()
+	go fsNotifyHandler(watcher, filename)
 
 	watcher.Watch(filename)
+}
+
+/**
+ * Fs Notify Handler
+ */
+func fsNotifyHandler(watcher *fsnotify.Watcher, filename string) {
+	for {
+		select {
+		case ev := <-watcher.Event:
+			if ev.IsModify() {
+				fmt.Println("Config file modified.")
+
+				// Restart telegraf monitor
+				Monitor_signal <- true
+				go Monitor(&client_num, c)
+
+				// Reset ip white list
+				parseIpWhiteList()
+
+				// Parse Banned Commands
+				parseBannedCommands()
+
+				// Rewatch file
+				watcher.Watch(filename)
+			}
+		case err := <-watcher.Error:
+			fmt.Println(err)
+		}
+	}
 }

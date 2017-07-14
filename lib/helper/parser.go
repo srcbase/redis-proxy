@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+const CRLF = "\r\n"
+
 func ParseCommandKey(command string) string {
 	re := regexp.MustCompile("\\w+")
 	matchs := re.FindAllStringSubmatch(command, -1)
@@ -16,11 +18,9 @@ func ParseCommandKey(command string) string {
 }
 
 func ParseCommandKey2(command string) string {
-	if strings.Index(command, "*2") == 0 {
-		command_arr := strings.Split(command, "\r\n")
-		if len(command_arr) >= 5 {
-			return command_arr[4]
-		}
+	command_arr := strings.Split(command, CRLF)
+	if len(command_arr) >= 5 {
+		return command_arr[4];
 	}
 
 	return ""

@@ -263,6 +263,7 @@ func handler(conn net.Conn) {
 		}
 
 		if command != "" {
+			//fmt.Println(command)
 			if commandFilter(command) {
 				if strings.Contains(command, "multi") {
 					is_transaction = true

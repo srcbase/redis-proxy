@@ -26,4 +26,8 @@ func TestParseCommandKey2(t *testing.T) {
 	if ParseCommandKey2("*2\r\n$3\r\nget\r\n$3\r\nfoo\r\n") != "foo" {
 		t.Errorf("Unexpected result")
 	}
+
+	if ParseCommandKey2("*3\r\n$3\r\nset\r\n$3\r\nfoo\r\n$3\r\nbar\r\n") != "foo" {
+		t.Errorf("Unexpected result")
+	}
 }
